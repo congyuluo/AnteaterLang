@@ -160,8 +160,11 @@ void raiseException(char* name, char* message) {
         if (handled) {
             // Set vm to panic
             vm->panic = true;
+            // Set the target IP and line
             vm->targetIP = currHandler->ipLoc;
             vm->targetLine = currHandler->toLine;
+            // Set restore stack pointer
+            vm->targetStackTop = currHandler->stackLoc;
             // Pop the handler batch
             vm->handlerStackTop -= currHandler->batchCount;
             return;

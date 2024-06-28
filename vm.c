@@ -620,6 +620,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             }
             case OP_SET_HANDLER: {
                 vm->handlerStackTop->ipLoc = &ip;
+                vm->handlerStackTop->stackLoc = vm->stackTop;
                 vm->handlerStackTop->batchCount = GET_BYTE(1);
                 vm->handlerStackTop->toLine = GET_WORD(2);
                 vm->handlerStackTop->type = GET_WORD(4);
@@ -629,6 +630,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             }
             case OP_SET_ALL_HANDLER: {
                 vm->handlerStackTop->ipLoc = &ip;
+                vm->handlerStackTop->stackLoc = vm->stackTop;
                 vm->handlerStackTop->batchCount = GET_BYTE(1);
                 vm->handlerStackTop->toLine = GET_WORD(2);
                 vm->handlerStackTop->handlesAll = true;
@@ -649,6 +651,8 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             if (vm->targetIP == &ip) {
                 // Set ip to target line
                 ip = &chunk->code[vm->targetLine];
+                // Set stack top to target stack
+                vm->stackTop = vm->targetStackTop;
                 // Reset panic
                 vm->panic = false;
             } else {

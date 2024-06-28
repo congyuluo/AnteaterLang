@@ -12,6 +12,7 @@
 
 typedef struct exceptionHandler {
     uint64_t** ipLoc;
+    Value* stackLoc;
     uint16_t type;
     uint16_t toLine;
     uint8_t batchCount;
@@ -30,6 +31,7 @@ typedef struct {
     // Exception handling
     uint64_t** targetIP;
     uint16_t targetLine;
+    Value* targetStackTop;
     bool panic;
 } VM;
 

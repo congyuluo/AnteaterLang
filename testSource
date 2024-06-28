@@ -1,8 +1,9 @@
-function x() {
-    return 1;
+function x(a) {
+    if (a > 1) {
+        return "Hello";
+    }
 }
 
 void function main() {
-    xFunc = x;
-    println(xFunc());
+    y = x(1);
 }

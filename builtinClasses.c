@@ -38,6 +38,7 @@ void addGlobalReference(refTable* globalRefTable, runtimeList* globalRefList, Va
 
 Value printPrim(Value self, Value* args, int numArgs) {
     printPrimitiveValue(self);
+    return NONE_VAL;
 }
 
 Value equalPrim(Value self, Value* args, int numArgs) {
@@ -76,25 +77,30 @@ Value equalPrim(Value self, Value* args, int numArgs) {
 Value initList(Value self, Value* args, int numArgs) {
     VALUE_LIST_VALUE(self) = createRuntimeList(RUNTIME_LIST_INIT_SIZE);
     for (int i=0; i<numArgs; i++) listAddElement(VALUE_LIST_VALUE(self), args[i]);
+    return NONE_VAL;
 }
 
 Value listAdd(Value self, Value* args, int numArgs) {
     listAddElement(VALUE_LIST_VALUE(self), args[0]);
+    return NONE_VAL;
 }
 
 Value listInsert(Value self, Value* args, int numArgs) {
     CHECK_NUM_TYPE(args[0]);
     listInsertElement(VALUE_LIST_VALUE(self), VALUE_NUMBER_VALUE(args[0]), args[1]);
+    return NONE_VAL;
 }
 
 Value listSet(Value self, Value* args, int numArgs) {
     CHECK_NUM_TYPE(args[0]);
     listSetElement(VALUE_LIST_VALUE(self),VALUE_NUMBER_VALUE(args[0]), args[1]);
+    return NONE_VAL;
 }
 
 Value listRemove(Value self, Value* args, int numArgs) {
     CHECK_NUM_TYPE(args[0]);
     listRemoveElement(VALUE_LIST_VALUE(self),VALUE_NUMBER_VALUE(args[0]));
+    return NONE_VAL;
 }
 
 Value listGet(Value self, Value* args, int numArgs) {
@@ -124,14 +130,17 @@ Value initDict(Value self, Value* args, int numArgs) {
     if (numArgs % 2 != 0) raiseException("runtimeError", "Dict init must have even number of arguments");
     VALUE_DICT_VALUE(self) = createRuntimeDict(RUNTIME_DICT_INIT_SIZE);
     for (int i=0; i<numArgs; i+=2) dictInsertElement(VALUE_DICT_VALUE(self), args[i], args[i+1]);
+    return NONE_VAL;
 }
 
 Value dictInsert(Value self, Value* args, int numArgs) {
     dictInsertElement(VALUE_DICT_VALUE(self), args[0], args[1]);
+    return NONE_VAL;
 }
 
 Value dictGet(Value self, Value* args, int numArgs) {
     dictGetElement(VALUE_DICT_VALUE(self), args[0]);
+    return NONE_VAL;
 }
 
 Value dictContains(Value self, Value* args, int numArgs) {
@@ -141,6 +150,7 @@ Value dictContains(Value self, Value* args, int numArgs) {
 
 Value dictRemove(Value self, Value* args, int numArgs) {
     dictRemoveElement(VALUE_DICT_VALUE(self), args[0]);
+    return NONE_VAL;
 }
 
 Value dictSize(Value self, Value* args, int numArgs) {
@@ -153,10 +163,12 @@ Value dictSize(Value self, Value* args, int numArgs) {
 Value initSet(Value self, Value* args, int numArgs) {
     VALUE_SET_VALUE(self) = createRuntimeSet(RUNTIME_SET_INIT_SIZE);
     for (int i=0; i<numArgs; i++) setInsertElement(VALUE_SET_VALUE(self), args[i]);
+    return NONE_VAL;
 }
 
 Value setInsert(Value self, Value* args, int numArgs) {
     setInsertElement(VALUE_SET_VALUE(self), args[0]);
+    return NONE_VAL;
 }
 
 Value setContains(Value self, Value* args, int numArgs) {
@@ -166,6 +178,7 @@ Value setContains(Value self, Value* args, int numArgs) {
 
 Value setRemove(Value self, Value* args, int numArgs) {
     setRemoveElement(VALUE_SET_VALUE(self), args[0]);
+    return NONE_VAL;
 }
 
 Value setSize(Value self, Value* args, int numArgs) {
@@ -196,11 +209,13 @@ Value strAdd(Value self, Value* args, int numArgs) {
 
 Value print(Value self, Value* args, int numArgs) {
     for (uint32_t i=0; i<numArgs; i++) DSPrintValue(args[i]);
+    return NONE_VAL;
 }
 
 Value println(Value self, Value* args, int numArgs) {
     for (uint32_t i=0; i<numArgs; i++) DSPrintValue(args[i]);
     printf("\n");
+    return NONE_VAL;
 }
 
 Value type(Value self, Value* args, int numArgs) {
