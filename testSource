@@ -1,0 +1,8 @@
+function x() {
+    return 1;
+}
+
+void function main() {
+    xFunc = x;
+    println(xFunc());
+}
