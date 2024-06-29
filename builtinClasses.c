@@ -29,6 +29,7 @@ objClass* stringClass;
 objClass* listClass;
 objClass* dictClass;
 objClass* setClass;
+objClass* exceptionClass;
 
 void addGlobalReference(refTable* globalRefTable, runtimeList* globalRefList, Value val, char* name) {
     if (refTableContains(globalRefTable, name)) compilationError(0, 0, 0, "global reference already exists");
@@ -326,6 +327,8 @@ void constructBuiltinClasses(refTable* globalRefTable, runtimeList* globalRefLis
     CLASS_ADD_ATTR(setClass, "remove", DEF_BUILTIN_CFUNC_METHOD_VALUE(1, 0, &setRemove));
     CLASS_ADD_ATTR(setClass, "size", DEF_BUILTIN_CFUNC_METHOD_VALUE(0, 1, &setSize));
 
+    // Create exception class
+    exceptionClass = createClass("exception", getRefIndex(globalClassTable, "exception"), INTERNAL_NULL_VAL, 0, NONE_INIT_TYPE);
 
     // Builtin functions
     Value printFunc = DEF_BUILTIN_CFUNC_FUNCTION_VALUE(-1, 0, &print);

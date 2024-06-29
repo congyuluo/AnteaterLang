@@ -1,13 +1,10 @@
 class a {
-    void init() {
+    void init(id) {
+        self.id = id;
     }
 }
 
 void function main() {
-    a_object = new a();
-    handle (ParameterError) {
-        print("Parameter error");
-    } try {
-        print(hasAttr(a_object, true));
-    }
+    obj = new a(1);
+    print(obj.id);
 }

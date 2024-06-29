@@ -57,3 +57,11 @@
 62	96	1719696194273140563	CMakeFiles/AnteaterLang.dir/objClass.c.o	28240635763403fd
 83	112	1719696194289315562	CMakeFiles/AnteaterLang.dir/runtimeMemoryManager.c.o	68d8aa54476246b3
 112	162	1719696194339732124	AnteaterLang	462b26d4bbb943cd
+4	40	1719696622223018813	CMakeFiles/AnteaterLang.dir/errors.c.o	8079efd5cd1e7bce
+40	74	1719696622257853809	AnteaterLang	462b26d4bbb943cd
+1	302	1719697396434324829	CMakeFiles/AnteaterLang.dir/builtinClasses.c.o	9639f4ca284ea6ea
+302	379	1719697396513173343	AnteaterLang	462b26d4bbb943cd
+1	45	1719697789460541398	CMakeFiles/AnteaterLang.dir/builtinClasses.c.o	9639f4ca284ea6ea
+45	78	1719697789494227682	AnteaterLang	462b26d4bbb943cd
+1	41	1719697804616590585	CMakeFiles/AnteaterLang.dir/builtinClasses.c.o	9639f4ca284ea6ea
+41	73	1719697804649996447	AnteaterLang	462b26d4bbb943cd
