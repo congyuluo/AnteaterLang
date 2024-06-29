@@ -325,6 +325,8 @@ void printToken(token* t) {
         case KEYWORD_INIT: printf("KEYWORD_INIT"); break;
         case KEYWORD_GLOBAL: printf("KEYWORD_GLOBAL"); break;
         case KEYWORD_INCLUDE: printf("KEYWORD_INCLUDE"); break;
+        case KEYWORD_EXCEPTION: printf("KEYWORD_EXCEPTION"); break;
+        case KEYWORD_UNRECOVERABLE: printf("KEYWORD_UNRECOVERABLE"); break;
         case KEYWORD_HANDLE: printf("KEYWORD_HANDLE"); break;
         case KEYWORD_TRY: printf("KEYWORD_TRY"); break;
 

@@ -13,6 +13,7 @@
 #include "builtinClasses.h"
 #include "objectManager.h"
 #include "objClass.h"
+#include "stringHash.h"
 
 
 // Increment current token
@@ -290,6 +291,10 @@ ParseRule rules[] = {
         [KEYWORD_PARENT_INIT] = {parentInit,     NULL,   PREC_CALL},
         [KEYWORD_INIT]        = {NULL,     NULL,   PREC_NONE},
         [KEYWORD_GLOBAL]      = {unary,    NULL,   PREC_UNARY},
+        [KEYWORD_HANDLE]      = {NULL, NULL, PREC_NONE},
+        [KEYWORD_TRY]         = {NULL, NULL, PREC_NONE},
+        [KEYWORD_EXCEPTION]   = {NULL, NULL, PREC_NONE},
+        [KEYWORD_UNRECOVERABLE] = {NULL, NULL, PREC_NONE},
 
         // Identifier
         [IDENTIFIER]          = {getVar, NULL,   PREC_NONE},
@@ -1102,7 +1107,7 @@ void standardStatement() {
         emittedCall = false;
         expression(false);
         // Check if flag is raised
-        if (!emittedCall) compilationError(lineStartToken->line, lineStartToken->index, lineStartToken->sourceIndex, "Non-return, function methodCall, or assignment statement");
+        if (!emittedCall) compilationError(lineStartToken->line, lineStartToken->index, lineStartToken->sourceIndex, "Non-return, function|method Call, or assignment statement");
     }
 }
 
@@ -1450,6 +1455,15 @@ void defFunction(bool isVoidReturn) {
     clearCurrentChunk();
 }
 
+void defException(bool unrecoverable) {
+    // Get exception name
+    incCheckType(IDENTIFIER, "Expected exception name");
+    // Add exception
+    addException(addReference(TOKEN_VALUE(currentToken)), unrecoverable);
+    // Expect ;
+    incCheckType(SEMICOLON, "Expected ';' after exception definition");
+}
+
 callable** checkPrelinkedCall() {
     // Allocate function array
     callable** functionArray = (callable**) malloc(sizeof(callable*) * prelinkedFuncTable->numEntries);
@@ -1631,6 +1645,15 @@ Value compile(refTable* GRTable, refTable* globalClassTable, runtimeList* GRList
             }
             case KEYWORD_INCLUDE: {
                 incCheckType(IDENTIFIER, "Expected identifier after 'include'");
+                break;
+            }
+            case KEYWORD_EXCEPTION: {
+                defException(false);
+                break;
+            }
+            case KEYWORD_UNRECOVERABLE: {
+                incCheckType(KEYWORD_EXCEPTION, "Expected 'exception' after 'unrecoverable'");
+                defException(true);
                 break;
             }
             default:

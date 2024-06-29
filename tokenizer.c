@@ -62,6 +62,8 @@ const char *keywords[] = {
         "and",
         "not",
         "include",
+        "exception",
+        "unrecoverable",
         "handle",
         "try"
 };
@@ -92,6 +94,8 @@ tokenType keywordTypes[] = {
         DOUBLE_AND,
         NOT,
         KEYWORD_INCLUDE,
+        KEYWORD_EXCEPTION,
+        KEYWORD_UNRECOVERABLE,
         KEYWORD_HANDLE,
         KEYWORD_TRY
 };

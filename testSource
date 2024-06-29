@@ -1,10 +1,6 @@
-class a {
-    void init(id) {
-        self.id = id;
-    }
-}
+unrecoverable exception a;
+
 
 void function main() {
-    obj = new a(1);
-    print(obj.id);
+    print("Hello World");
 }
