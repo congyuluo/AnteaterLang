@@ -24,6 +24,8 @@ typedef struct Exception {
 
 extern Exception exceptionArray[EXCEPTION_ARRAY_SIZE];
 
+uint32_t getExceptionCount();
+
 void addException(char* name, bool fatal);
 
 uint16_t getExceptionID(char* name);

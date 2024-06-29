@@ -100,6 +100,11 @@ void exceptionManagerError(char *message) {
     exit(EXIT_FAILURE);
 }
 
+uint32_t getExceptionCount() {
+    if (erTable == NULL) exceptionManagerError("Uninitiated global reference to exception table");
+    return erTable->numEntries;
+}
+
 
 void addException(char* name, bool fatal) {
     if (erTable == NULL) exceptionManagerError("Uninitiated global reference to exception table");

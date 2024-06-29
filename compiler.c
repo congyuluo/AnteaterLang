@@ -1708,7 +1708,12 @@ Value compile(refTable* GRTable, refTable* globalClassTable, runtimeList* GRList
 
     // Check if all classes has been defined
     for (uint32_t i=0; i<globalClassTable->numEntries; i++) {
-        if (classArray[i] == NULL) compilationError(0, 0, 0, "Undefined class");
+        if (classArray[i] == NULL) compilationError(0, 0, 0, "Source contains undefined class.");
+    }
+
+    // Check if all exceptions have been defined
+    for (uint32_t i=0; i<getExceptionCount(); i++) {
+        if (exceptionArray[i].ID == EXCEPTION_ARRAY_SIZE) compilationError(0, 0, 0, "Source contains undefined exception.");
     }
 
     // Set total amount of class
