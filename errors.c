@@ -122,54 +122,70 @@ void addBuiltinExceptions(refTable* exceptionRefTable) {
     // Add reference to builtin exception
     erTable = exceptionRefTable;
     addException("varError", true);
-    addException("objHashError", true);
-    addException("callableError", true);
-    addException("objManagerError", true);
-    addException("strHashError", true);
-    addException("listError", true);
-    addException("dictError", true);
-    addException("setError", true);
-    addException("runtimeError", false);
+    addException("ObjHashError", true);
+    addException("ConstantError", true);
+    addException("DisassemblerError", true);
+    addException("CallableError", true);
+    addException("ObjManagerError", true);
+    addException("ReferenceTableError", true);
+    addException("StrHashError", true);
+    addException("DictError", true);
+    addException("ListError", true);
+    addException("SetError", true);
     addException("GCError", true);
+    addException("InternalError", true);
+    addException("ReturnCountError", true);
+    addException("ParameterError", false);
+    addException("AttributeError", false);
+    addException("ValueError", false);
+    addException("TypeError", false);
+    addException("ReferenceError", false);
+
 }
 
 void raiseException(char* name, char* message) {
     if (erTable == NULL) exceptionManagerError("Uninitiated global reference to exception table");
     if (!refTableContains(erTable, name)) exceptionManagerError("Exception could not be found");
-    // Find the current exception
-    uint32_t currErrorIndex = getRefIndex(erTable, name);
-    Exception* currException = &exceptionArray[currErrorIndex];
 
-    // Determine if exception is unrecoverable
-    if (!currException->fatal) {
-        // Todo: Try to handle it
-        exceptionHandler* currHandler = vm->handlerStackTop -1;
-        bool handled = false;
-        while (currHandler >= vm->handlerStack) {
-            if (currHandler->handlesAll) { // If handles all
-                handled = true;
-                break;
-            } else { // Else, check type
-                if (currHandler->type == currErrorIndex) {
+    // If runtime, try to handle it
+    if (isRuntime) {
+        // Find the current exception
+        uint32_t currErrorIndex = getRefIndex(erTable, name);
+        Exception* currException = &exceptionArray[currErrorIndex];
+
+        // Determine if exception is unrecoverable
+        if (!currException->fatal) {
+            exceptionHandler* currHandler = vm->handlerStackTop -1;
+            bool handled = false;
+            while (currHandler >= vm->handlerStack) {
+                if (currHandler->handlesAll) { // If handles all
                     handled = true;
                     break;
+                } else { // Else, check type
+                    if (currHandler->type == currErrorIndex) {
+                        handled = true;
+                        break;
+                    }
                 }
+                currHandler--;
             }
-            currHandler--;
-        }
-        if (handled) {
-            // Set vm to panic
-            vm->panic = true;
-            // Set the target IP and line
-            vm->targetIP = currHandler->ipLoc;
-            vm->targetLine = currHandler->toLine;
-            // Set restore stack pointer
-            vm->targetStackTop = currHandler->stackLoc;
-            // Pop the handler batch
-            vm->handlerStackTop -= currHandler->batchCount;
-            return;
+            if (handled) {
+                // Set vm to panic
+                vm->panic = true;
+                // Set the target IP and line
+                vm->targetIP = currHandler->ipLoc;
+                vm->targetLine = currHandler->toLine;
+                // Set restore stack pointer
+                vm->targetStackTop = currHandler->stackLoc;
+                // Pop the handler batch
+                vm->handlerStackTop -= currHandler->batchCount;
+                return;
+            }
+        } else {
+            fprintf(stderr, "Fatal - ");
         }
     }
+
     // If not, just quit and print message
     // Print error message
     fprintf(stderr, "\n%s: %s\n", name, message == NULL ? "" : message);

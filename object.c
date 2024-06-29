@@ -13,12 +13,12 @@
 
 strValueHash* createStrValHashTable(uint32_t table_size) {
     strValueHash* table = malloc(sizeof(strValueHash));
-    if (table == NULL) raiseException("objHashError", "Memory allocation failed.\n");
+    if (table == NULL) raiseException("ObjHashError", "Memory allocation failed.\n");
     table->table_size = table_size;
     table->num_entries = 0;
     table->history_max_entries = 0;
     table->entries = calloc(table->table_size, sizeof(strValueEntry*));
-    if (table->entries == NULL) raiseException("objHashError", "Memory allocation failed.\n");
+    if (table->entries == NULL) raiseException("ObjHashError", "Memory allocation failed.\n");
 
     return table;
 }
@@ -60,7 +60,7 @@ void strValResizeInsert(strValueHash* table, char* key, Value value) {
     }
 
     entry = malloc(sizeof(strValueEntry));
-    if (entry == NULL) raiseException("objHashError", "Memory allocation for strObjTable entry failed");
+    if (entry == NULL) raiseException("ObjHashError", "Memory allocation for strObjTable entry failed");
     entry->key = addReference(key);
     entry->value = value;
     entry->next = table->entries[pos];
@@ -74,7 +74,7 @@ void strValResizeInsert(strValueHash* table, char* key, Value value) {
 void strValInsert(strValueHash* table, char* key, Value value) {
     strValResizeInsert(table, key, value);
     table->history_max_entries++;
-    if (table->history_max_entries >= UINT32_MAX-1) raiseException("objHashError", "StrObjTable history_max_entries overflow during insert");
+    if (table->history_max_entries >= UINT32_MAX-1) raiseException("ObjHashError", "StrObjTable history_max_entries overflow during insert");
 }
 
 Value strValFind(strValueHash* table, char* key) {
@@ -116,13 +116,13 @@ void strValTableDeleteEntry(strValueHash* table, char* key) {
         }
         p = &((*p)->next);
     }
-    raiseException("objHashError", "Key not found in delete");
+    raiseException("ObjHashError", "Key not found in delete");
 }
 
 void strValResize(strValueHash* table) {
     assert(table != NULL);
 
-    if (table->table_size >= UINT32_MAX/2) raiseException("objHashError", "StrObjTable exceeds max size during resize");
+    if (table->table_size >= UINT32_MAX/2) raiseException("ObjHashError", "StrObjTable exceeds max size during resize");
 
     uint32_t old_table_size = table->table_size;
     strValueEntry** old_entries = table->entries;
@@ -130,7 +130,7 @@ void strValResize(strValueHash* table) {
     table->table_size *= 2;
     table->num_entries = 0;
     table->entries = calloc(table->table_size, sizeof(strValueEntry*));
-    if (table->entries == NULL) raiseException("objHashError", "Memory allocation failed during StrObjTable resize");
+    if (table->entries == NULL) raiseException("ObjHashError", "Memory allocation failed during StrObjTable resize");
 
     for (uint32_t i = 0; i < old_table_size; i++) {
         strValueEntry* entry = old_entries[i];
@@ -210,7 +210,7 @@ void printObjClass(objClass* oc) {
             printf("chunk_func_init");
             break;
         default:
-            raiseException("objHashError", "Invalid initType in printObjClass()");
+            raiseException("ObjHashError", "Invalid initType in printObjClass()");
     }
     printf(", className: \"%s\"]\n", oc->className);
 
@@ -346,7 +346,7 @@ void printPrimitiveValue(Value val) {
             printRuntimeSet(VALUE_SET_VALUE(val));
             break;
         default:
-            raiseException("varError", "Invalid primitive type");
+            raiseException("ParameterError", "Invalid primitive type");
             break;
     }
 }
@@ -354,10 +354,10 @@ void printPrimitiveValue(Value val) {
 callable* createCallable(int in, uint8_t out, void* cFunc, Chunk* func, callableType type) {
     // Check if only one func is null
     if ((cFunc == NULL && func == NULL) || (cFunc != NULL && func != NULL)) {
-        raiseException("callableError", "Exactly one of cFunc and func must be NULL");
+        raiseException("CallableError", "Exactly one of cFunc and func must be NULL");
     }
     callable* initFunc = malloc(sizeof(callable));
-    if (initFunc == NULL) raiseException("callableError", "Memory allocation for callable failed");
+    if (initFunc == NULL) raiseException("CallableError", "Memory allocation for callable failed");
     initFunc->in = in;
     initFunc->out = out;
     initFunc->cFunc = cFunc;
@@ -372,7 +372,7 @@ void deleteCallable(callable* c) {
 }
 
 Value getAttr(Value val, char* name) {
-    if (IS_INTERNAL_NULL(val)) raiseException("objHashError", "Null object called on get attr.");
+    if (IS_INTERNAL_NULL(val)) raiseException("ObjHashError", "Null object called on get attr.");
     Value value = INTERNAL_NULL_VAL;
     if (!IS_SYSTEM_DEFINED_TYPE(val.type)) value = strValFind(VALUE_ATTRS(val), name);
     if (!IS_INTERNAL_NULL(value)) return value;
@@ -381,12 +381,18 @@ Value getAttr(Value val, char* name) {
         value = CLASS_FIND_ATTR(p_class, name);
         p_class = p_class->parentClass;
     }
-    if (IS_INTERNAL_NULL(value)) raiseException("objHashError", "Attribute not found.");
+    if (IS_INTERNAL_NULL(value)) {
+        raiseException("AttributeError", "Attribute not found.");
+        return NONE_VAL;
+    }
     return value;
 }
 
 Value ignoreNullGetAttr(Value val, char* name) {
-    if (IS_INTERNAL_NULL(val)) raiseException("objHashError", "Null object called on get attr.");
+    if (IS_INTERNAL_NULL(val)) {
+        raiseException("TypeError", "Null object called on get attr.");
+        return NONE_VAL;
+    }
     Value value = INTERNAL_NULL_VAL;
     if (!IS_SYSTEM_DEFINED_TYPE(val.type)) value = strValFind(VALUE_ATTRS(val), name);
     if (!IS_INTERNAL_NULL(value)) return value;

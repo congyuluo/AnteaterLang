@@ -52,18 +52,21 @@ static inline void popLocalScope(uint16_t dataSectionSize) {
 
 Value execInput(Value callableObj, Value selfObj, Value* attrs, uint8_t inCount) {
     // Check object type
-    if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) raiseException("runtimeError", "Input Object is not callable");
+    if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) raiseException("InternalError", "Input Object is not callable");
     // Get callable
     callable* c = VALUE_CALLABLE_VALUE(callableObj);
     // Check callable in count
-    if (c->in != -1 && c->in != inCount) raiseException("runtimeError", "Inplace input count does not match callable input count");
+    if (c->in != -1 && c->in != inCount) {
+        raiseException("ParameterError", "Inplace input count does not match callable input count");
+        return NONE_VAL;
+    }
     // Determine is callable is method
     bool isMethod = IS_METHOD(callableObj);
     Value result = INTERNAL_NULL_VAL;
     if (IS_C_CALLABLE(c)) { // Built-in C function
         result = c->cFunc(selfObj, attrs, inCount);
         // Check output
-        if (VALUE_CALLABLE_VALUE(callableObj)->out != 0 && IS_INTERNAL_NULL(result)) raiseException("runtimeError", "No return object for non-void callable");
+        if (VALUE_CALLABLE_VALUE(callableObj)->out != 0 && IS_INTERNAL_NULL(result)) raiseException("ReturnCountError", "No return object for non-void callable");
         return result;
     } else { // Chunk function
         // Load onto stack
@@ -77,7 +80,7 @@ Value execInput(Value callableObj, Value selfObj, Value* attrs, uint8_t inCount)
         execChunk(c->func, dataSecPtr);
         // Check output
         if (c->out != 0) {
-            if (vm->stackTop != beforeCallStackTop+1) raiseException("runtimeError", "No return object for non-void callable");
+            if (vm->stackTop != beforeCallStackTop+1) raiseException("ReturnCountError", "No return object for non-void callable");
             result = STACK_POP();
         }
         // Remove local scope
@@ -88,11 +91,14 @@ Value execInput(Value callableObj, Value selfObj, Value* attrs, uint8_t inCount)
 
 void execInplace(Value callableObj, uint8_t inCount) {
     // Check object type
-    if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) raiseException("runtimeError", "Input Object is not callable");
+    if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) raiseException("InternalError", "Input Object is not callable");
     // Get callable
     callable* c = VALUE_CALLABLE_VALUE(callableObj);
     // Check callable in count
-    if (c->in != -1 && c->in != inCount) raiseException("runtimeError", "Inplace input count does not match callable input count");
+    if (c->in != -1 && c->in != inCount) {
+        raiseException("ParameterError", "Inplace input count does not match callable input count");
+        return;
+    }
     // Determine is callable is method
     bool isMethod = IS_METHOD(callableObj);
     // Execute
@@ -103,7 +109,7 @@ void execInplace(Value callableObj, uint8_t inCount) {
         } else {
             result = c->cFunc(INTERNAL_NULL_VAL, vm->stackTop - inCount, inCount);
         }
-        if (c->out != 0 && IS_INTERNAL_NULL(result)) raiseException("runtimeError", "No return object for non-void callable");
+        if (c->out != 0 && IS_INTERNAL_NULL(result)) raiseException("ReturnCountError", "No return object for non-void callable");
         // Shift stack
         vm->stackTop -= isMethod ? inCount+2 : inCount+1;
         if (c->out != 0) STACK_PUSH(result);
@@ -117,7 +123,7 @@ void execInplace(Value callableObj, uint8_t inCount) {
         // Check output
         Value result;
         if (c->out != 0) {
-            if (vm->stackTop != beforeCallStackTop+1) raiseException("runtimeError", "No return object for non-void callable");
+            if (vm->stackTop != beforeCallStackTop+1) raiseException("ReturnCountError", "No return object for non-void callable");
             result = STACK_POP();
         }
         // Remove local ref table
@@ -142,7 +148,7 @@ static inline double payloadNumBinaryOp(double val1, double val2, OpCode op) {
         case OP_MOD: return fmod(val1, val2);
         case OP_POW: return pow(val1, val2);
         default:
-            raiseException("runtimeError", "Invalid binary operation type");
+            raiseException("InternalError", "Invalid binary operation type");
     }
     return 0; // Unreachable
 }
@@ -156,13 +162,13 @@ static inline Value payloadNumBinaryComp(double val1, double val2, OpCode op) {
         case OP_EQUAL: return (val1 == val2) ? BOOL_VAL(true) : BOOL_VAL(false);
         case OP_NOT_EQUAL: return (val1 != val2) ? BOOL_VAL(true) : BOOL_VAL(false);
         default:
-            raiseException("runtimeError", "Invalid binary operation type");
+            raiseException("InternalError", "Invalid binary operation type");
     }
     return INTERNAL_NULL_VAL; // Unreachable
 }
 
 void execChunk(Chunk* chunk, Value* dataSection) {
-    if (chunk == NULL) raiseException("runtimeError", "Chunk is NULL");
+    if (chunk == NULL) raiseException("InternalError", "Chunk is NULL");
     uint64_t* ip = chunk->code;
     Value* constants = (Value*) chunk->constants->data;
     Value* globalRefArray = vm->globalRefArray;
@@ -190,7 +196,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             }
             case OP_GET_ATTR: {
                 Value attrName = CONST_REF(GET_BYTE(1));
-                if (VALUE_TYPE(attrName) != BUILTIN_STR) raiseException("runtimeError", "Attribute name is not a string");
+                if (VALUE_TYPE(attrName) != BUILTIN_STR) {
+                    raiseException("TypeError", "Attribute name is not a string");
+                    break;
+                }
                 Value obj = STACK_POP();
                 Value attrObj = getAttr(obj, VALUE_STR_VALUE(attrName));
                 // Insert new object
@@ -199,7 +208,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             }
             case OP_GET_ATTR_CALL: {
                 Value attrName = CONST_REF(GET_BYTE(1));
-                if (VALUE_TYPE(attrName) != BUILTIN_STR) raiseException("runtimeError", "Attribute name is not a string");
+                if (VALUE_TYPE(attrName) != BUILTIN_STR) {
+                    raiseException("TypeError", "Attribute name is not a string");
+                    break;
+                }
                 Value obj = STACK_POP();
                 Value attrObj = getAttr(obj, VALUE_STR_VALUE(attrName));
                 // Insert new object
@@ -211,14 +223,20 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             case OP_GET_GLOBAL_REF_ATTR: {
                 // Push attribute object
                 Value retrievedObj = GLOBAL_REF(GET_WORD(1));
-                if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Global reference not found");
+                if (IS_INTERNAL_NULL(retrievedObj)) {
+                    raiseException("ReferenceError", "Global reference not found");
+                    break;
+                }
                 STACK_PUSH(retrievedObj);
                 break;
             }
             case OP_GET_LOCAL_REF_ATTR: {
                 // Push attribute object
                 Value retrievedObj = LOCAL_REF(GET_WORD(1));
-                if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Local reference not found");
+                if (IS_INTERNAL_NULL(retrievedObj)) {
+                    raiseException("ReferenceError", "Local reference not found");
+                    break;
+                }
                 STACK_PUSH(retrievedObj);
                 break;
             }
@@ -229,7 +247,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 if (IS_INTERNAL_NULL(retrievedObj)) { // Search in global ref array
                     retrievedObj = GLOBAL_REF(GET_WORD(3));
                 }
-                if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Reference not found");
+                if (IS_INTERNAL_NULL(retrievedObj)) {
+                    raiseException("ReferenceError", "Reference not found");
+                    break;
+                }
                 // Push attribute object
                 STACK_PUSH(retrievedObj);
                 break;
@@ -240,7 +261,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 uint16_t globalIndex = GET_WORD(1);
                 if (sa != ASSIGNMENT_NONE) {
                     Value retrievedObj = GLOBAL_REF(globalIndex);
-                    if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Reference not found");
+                    if (IS_INTERNAL_NULL(retrievedObj)) {
+                        raiseException("ReferenceError", "Reference not found");
+                        break;
+                    }
                     GLOBAL_REF(globalIndex) = performValueModification(sa, retrievedObj, STACK_POP());
                 } else {
                     GLOBAL_REF(globalIndex) = STACK_POP();
@@ -255,7 +279,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 if (sa != ASSIGNMENT_NONE) {
                     // Try local
                     Value retrievedObj = LOCAL_REF(localIndex);
-                    if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Reference not found");
+                    if (IS_INTERNAL_NULL(retrievedObj)) {
+                        raiseException("ReferenceError", "Reference not found");
+                        break;
+                    }
                     // Check if we are modifying a number
                     if (VALUE_TYPE(val) == VAL_NUMBER && VALUE_TYPE(retrievedObj) == VAL_NUMBER) {
                         switch (sa) {
@@ -272,7 +299,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                             case ASSIGNMENT_POWER:
                                 VALUE_NUMBER_VALUE(LOCAL_REF(localIndex)) = pow(VALUE_NUMBER_VALUE(LOCAL_REF(localIndex)), VALUE_NUMBER_VALUE(val)); break;
                             default: {
-                                raiseException("runtimeError", "Unknown special assignment");
+                                raiseException("InternalError", "Unknown assignment");
                             }
                         }
                     } else { // Modify object
@@ -310,7 +337,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                                 case ASSIGNMENT_POWER:
                                     VALUE_NUMBER_VALUE(LOCAL_REF(localIndex)) = pow(VALUE_NUMBER_VALUE(LOCAL_REF(localIndex)), VALUE_NUMBER_VALUE(val)); break;
                                 default: {
-                                    raiseException("runtimeError", "Unknown special assignment");
+                                    raiseException("InternalError", "Unknown assignment");
                                 }
                             }
                         } else { // Modify object
@@ -318,7 +345,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                         }
                     } else { // Try global
                         retrievedObj = GLOBAL_REF(globalIndex);
-                        if (IS_INTERNAL_NULL(retrievedObj)) raiseException("runtimeError", "Local and global reference not found");
+                        if (IS_INTERNAL_NULL(retrievedObj)) {
+                            raiseException("ReferenceError", "Local and global reference not found");
+                            break;
+                        }
                         GLOBAL_REF(globalIndex) = performValueModification(sa, retrievedObj, val);
                     }
                 } else { // Assign
@@ -352,7 +382,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                         break;
                     }
                     default:
-                        raiseException("runtimeError", "Unknown right capture type");
+                        raiseException("InternalError", "Unknown right capture type");
                 }
                 Value leftObj = INTERNAL_NULL_VAL;
                 double leftVal;
@@ -372,7 +402,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                         break;
                     }
                     default:
-                        raiseException("runtimeError", "Unknown left capture type");
+                        raiseException("InternalError", "Unknown left capture type");
                 }
                 if (rightIsNum && leftIsNum) {
                     STACK_PUSH(NUMBER_VAL(payloadNumBinaryOp(leftVal,rightVal, op)));
@@ -409,7 +439,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                         break;
                     }
                     default:
-                        raiseException("runtimeError", "Unknown right capture type");
+                        raiseException("InternalError", "Unknown right capture type");
                 }
                 Value leftObj = INTERNAL_NULL_VAL;
                 double leftVal;
@@ -429,7 +459,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                         break;
                     }
                     default:
-                        raiseException("runtimeError", "Unknown left capture type");
+                        raiseException("InternalError", "Unknown left capture type");
                 }
                 if (rightIsNum && leftIsNum) {
                     STACK_PUSH(payloadNumBinaryComp(leftVal,rightVal, op));
@@ -445,21 +475,30 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 break;
             case OP_NOT: {
                 Value obj = STACK_POP();
-                if (VALUE_TYPE(obj) != VAL_BOOL) raiseException("runtimeError", "Object is not a boolean");
+                if (VALUE_TYPE(obj) != VAL_BOOL) {
+                    raiseException("TypeError", "Object is not a boolean");
+                    break;
+                }
                 STACK_PUSH(!VALUE_BOOL_VALUE(obj) ? BOOL_VAL(true) : BOOL_VAL(false));
                 break;
             }
             case OP_AND: {
                 Value obj2 = STACK_POP();
                 Value obj1 = STACK_POP();
-                if (VALUE_TYPE(obj1) != VAL_BOOL || VALUE_TYPE(obj2) != VAL_BOOL) raiseException("runtimeError", "Object is not a boolean");
+                if (VALUE_TYPE(obj1) != VAL_BOOL || VALUE_TYPE(obj2) != VAL_BOOL) {
+                    raiseException("TypeError", "Object is not a boolean");
+                    break;
+                }
                 STACK_PUSH(VALUE_BOOL_VALUE(obj1) && VALUE_BOOL_VALUE(obj2) ? BOOL_VAL(true) : BOOL_VAL(false));
                 break;
             }
             case OP_OR: {
                 Value obj2 = STACK_POP();
                 Value obj1 = STACK_POP();
-                if (VALUE_TYPE(obj1) != VAL_BOOL || VALUE_TYPE(obj2) != VAL_BOOL) raiseException("runtimeError", "Object is not a boolean");
+                if (VALUE_TYPE(obj1) != VAL_BOOL || VALUE_TYPE(obj2) != VAL_BOOL) {
+                    raiseException("TypeError", "Object is not a boolean");
+                    break;
+                }
                 STACK_PUSH(VALUE_BOOL_VALUE(obj1) || VALUE_BOOL_VALUE(obj2) ? BOOL_VAL(true) : BOOL_VAL(false));
                 break;
             }
@@ -471,7 +510,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
             }
             case OP_JUMP_IF_FALSE: {
                 Value condition = STACK_POP();
-                if (VALUE_TYPE(condition) != VAL_BOOL) raiseException("runtimeError", "Condition is not a boolean");
+                if (VALUE_TYPE(condition) != VAL_BOOL) {
+                    raiseException("TypeError", "Condition is not a boolean");
+                    break;
+                }
                 if (!VALUE_BOOL_VALUE(condition)) {
                     int16_t jumpInc = GET_WORD(1);
                     ip--;
@@ -517,7 +559,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                     indexSpecialAssignment(sa, target, index, value);
                 } else {
                     // Check index is num
-                    if (VALUE_TYPE(index) != VAL_NUMBER) raiseException("runtimeError", "Index is not a num");
+                    if (VALUE_TYPE(index) != VAL_NUMBER) {
+                        raiseException("TypeError", "Index is not a num");
+                        break;
+                    }
                     // Get index set method
                     Value indexSetMethod = getAttr(target, "set");
                     // Prepare input array
@@ -531,13 +576,19 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 // Get attribute name
                 Value attrName = CONST_REF(GET_BYTE(1));
                 // Check if attribute name is a string
-                if (VALUE_TYPE(attrName) != BUILTIN_STR) raiseException("runtimeError", "Attribute name is not a string");
+                if (VALUE_TYPE(attrName) != BUILTIN_STR) {
+                    raiseException("TypeError", "Attribute name is not a string");
+                    break;
+                }
                 // Get special assignment
                 specialAssignment sa = GET_BYTE(2);
                 // Get Value and target objects
                 Value value = STACK_POP();
                 Value target = STACK_POP();
-                if (IS_SYSTEM_DEFINED_TYPE(target.type)) raiseException("runtimeError", "Unable to set attribute on system defined type");
+                if (IS_SYSTEM_DEFINED_TYPE(target.type)) {
+                    raiseException("AttributeError", "Unable to set attribute on system defined type");
+                    break;
+                }
                 if (sa != ASSIGNMENT_NONE) {
                     attrSpecialAssignment(sa, target, VALUE_STR_VALUE(attrName), value);
                 } else {
@@ -551,10 +602,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 uint8_t attrCount = GET_BYTE(1);
                 callable* targetCallable = functionArray[GET_WORD(2)];
                 // Check callable output count
-                if (op == OP_EXEC_FUNCTION_ENFORCE_RETURN && targetCallable->out == 0) raiseException("runtimeError", "Callable has no output");
+                if (op == OP_EXEC_FUNCTION_ENFORCE_RETURN && targetCallable->out == 0) raiseException("InternalError", "Callable has no output");
                 if (IS_C_CALLABLE(targetCallable)) {
                     Value result = targetCallable->cFunc(INTERNAL_NULL_VAL, vm->stackTop - attrCount, attrCount);
-                    if (targetCallable->out != 0 && IS_INTERNAL_NULL(result)) raiseException("runtimeError", "No return object for non-void callable");
+                    if (targetCallable->out != 0 && IS_INTERNAL_NULL(result)) raiseException("InternalError", "No return object for non-void callable");
                     vm->stackTop -= attrCount;
                     if (targetCallable->out != 0) STACK_PUSH(result);
                 } else {
@@ -580,9 +631,15 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 // If callable position is self, get callable from previous position
                 if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) callableObj = *(vm->stackTop-(inputCount+2));
                 // Check if callable
-                if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) raiseException("runtimeError", "Object is not callable");
+                if (VALUE_TYPE(callableObj) != BUILTIN_CALLABLE) {
+                    raiseException("TypeError", "Object is not callable");
+                    break;
+                }
                 // Check if callable has output for enforce return
-                if (VALUE_CALLABLE_VALUE(callableObj)->out == 0 && op == OP_EXEC_METHOD_ENFORCE_RETURN) raiseException("runtimeError", "Callable has no output");
+                if (VALUE_CALLABLE_VALUE(callableObj)->out == 0 && op == OP_EXEC_METHOD_ENFORCE_RETURN) {
+                    raiseException("ValueError", "Callable has no output");
+                    break;
+                }
                 // Execute callable
                 execInplace(callableObj, inputCount);
                 // Ignore return object if necessary
@@ -594,7 +651,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 uint16_t classID = GET_WORD(1);
                 objClass* objectClass = classArray[classID];
                 initFuncType classInitType = objectClass->initType;
-                if (classInitType == NONE_INIT_TYPE) raiseException("runtimeError", "Inappropriate class initialization type for 'new' operation");
+                if (classInitType == NONE_INIT_TYPE) {
+                    raiseException("ValueError", "Inappropriate class initialization type for 'new' operation");
+                    break;
+                }
                 // Create object and push to stack
                 Value newObj = OBJECT_VAL(createRuntimeObj(objectClass), objectClass->classID);
                 // Push object for current frame reference
@@ -609,9 +669,15 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 Value selfObj = LOCAL_REF(0);
                 // Get parent init method
                 objClass* currClass = VALUE_CLASS(selfObj);
-                if (currClass->parentClass == NULL) raiseException("runtimeError", "Called pInit on object of class with no parent");
+                if (currClass->parentClass == NULL) {
+                    raiseException("ValueError", "Called pInit on object of class with no parent");
+                    break;
+                }
                 initFuncType pClassInitType = currClass->parentClass->initType;
-                if (pClassInitType == NONE_INIT_TYPE) raiseException("runtimeError", "Inappropriate parent class initialization type");
+                if (pClassInitType == NONE_INIT_TYPE) {
+                    raiseException("TypeError", "Inappropriate parent class initialization type");
+                    break;
+                }
                 // Push parent init method
                 STACK_PUSH(currClass->parentClass->initFunc);
                 // Push self for next frame reference
@@ -643,7 +709,7 @@ void execChunk(Chunk* chunk, Value* dataSection) {
                 break;
             }
             default:
-                raiseException("runtimeError", "Unknown opcode.");
+                raiseException("InternalError", "Unknown opcode.");
         }
         // Exception handling
         if (vm->panic) {
@@ -670,7 +736,10 @@ void execChunk(Chunk* chunk, Value* dataSection) {
 
 bool compareValue(Value v1, Value v2) {
     Value result = binaryOperation(v1, v2, OP_EQUAL);
-    if (VALUE_TYPE(result) != VAL_BOOL) raiseException("runtimeError", "Result of _eq is not a boolean");
+    if (VALUE_TYPE(result) != VAL_BOOL) {
+        raiseException("ValueError", "Result of _eq is not a boolean");
+        return false;
+    }
     return VALUE_BOOL_VALUE(result);
 }
 
@@ -692,7 +761,7 @@ void initVM(Value* globalRefArray, callable** functionArray, uint16_t globalRefC
 
 Value unaryOperation(Value obj1, char* op) {
     Value opFunction = ignoreNullGetAttr(obj1, op);
-    if (IS_INTERNAL_NULL(opFunction)) raiseException("runtimeError", "No operator function found");
+    if (IS_INTERNAL_NULL(opFunction)) raiseException("InternalError", "No operator function found");
     return execInput(opFunction, obj1, NULL, 0);
 }
 
@@ -757,7 +826,7 @@ Value binaryOperation(Value v1, Value v2, OpCode op) {
             break;
         }
         default:
-            raiseException("runtimeError", "Invalid binary operation type");
+            raiseException("InternalError", "Invalid binary operation type");
     }
     Value opFunction = ignoreNullGetAttr(v1, leftOpStr);
     if (!IS_INTERNAL_NULL(opFunction)) {
@@ -769,8 +838,8 @@ Value binaryOperation(Value v1, Value v2, OpCode op) {
             return execInput(opFunction, v2, &v1, 1);
         }
     }
-    raiseException("runtimeError", "No operator function found");
-    return INTERNAL_NULL_VAL;
+    raiseException("AttributeError", "No operator function found");
+    return NONE_VAL;
 }
 
 Value performValueModification(specialAssignment sa, Value value, Value modValue) {
@@ -789,7 +858,7 @@ Value performValueModification(specialAssignment sa, Value value, Value modValue
             case ASSIGNMENT_POWER:
                 return NUMBER_VAL(payloadNumBinaryOp(VALUE_NUMBER_VALUE(value), VALUE_NUMBER_VALUE(modValue), OP_POW));
             default: {
-                raiseException("runtimeError", "Unknown special assignment");
+                raiseException("InternalError", "Unknown assignment");
                 return INTERNAL_NULL_VAL;
             }
         }
@@ -808,7 +877,7 @@ Value performValueModification(specialAssignment sa, Value value, Value modValue
             case ASSIGNMENT_POWER:
                 return binaryOperation(value, modValue, OP_POW);
             default: {
-                raiseException("runtimeError", "Unknown special assignment");
+                raiseException("InternalError", "Unknown assignment");
                 return INTERNAL_NULL_VAL;
             }
         }
@@ -836,10 +905,13 @@ void attrSpecialAssignment(specialAssignment sa, Value target, char* attrName, V
 
 Value objGetIndexRef(Value target, Value index) {
     // Get index object
-    if (VALUE_TYPE(index) != VAL_NUMBER) raiseException("runtimeError", "Index object is not num");
+    if (VALUE_TYPE(index) != VAL_NUMBER) {
+        raiseException("TypeError", "Index object is not num");
+        return NONE_VAL;
+    }
     // Get index reference method
     Value indexRefMethod = getAttr(target, "get");
-    if (VALUE_CALLABLE_VALUE(indexRefMethod)->out == 0) raiseException("runtimeError", "Index reference method has no output");
+    if (VALUE_CALLABLE_VALUE(indexRefMethod)->out == 0) raiseException("ReturnCountError", "Index reference method has no output");
     return execInput(indexRefMethod, target, &index, 1);
 }
 

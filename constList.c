@@ -19,7 +19,7 @@ Object* addConst() {
     constList->nextSlot++;
     if (createNewBlock) {
         ConstBlock* newBlock = (ConstBlock*)malloc(sizeof(ConstBlock));
-        if (newBlock == NULL) raiseException("objManagerError", "Failed to allocate memory for new const block.");
+        if (newBlock == NULL) raiseException("ConstantError", "Failed to allocate memory for new const block.");
         newBlock->nextSlot = newBlock->block;
         newBlock->next = constList;
         constList = newBlock;

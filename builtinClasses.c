@@ -64,8 +64,10 @@ Value equalPrim(Value self, Value* args, int numArgs) {
         case BUILTIN_STR:
             resultBool = strcmp(VALUE_STR_VALUE(self), VALUE_STR_VALUE(otherObj)) == 0;
             break;
-        default:
-            raiseException("runtimeError", "Unsupported type for equalPrim");
+        default: {
+            raiseException("InternalError", "Unsupported type for equalPrim"); // No return needed for fatal error types
+        }
+
     }
     return resultBool ? BOOL_VAL(true) : BOOL_VAL(false);
 }
@@ -127,7 +129,10 @@ Value listSize(Value self, Value* args, int numArgs) {
 
 // Dict
 Value initDict(Value self, Value* args, int numArgs) {
-    if (numArgs % 2 != 0) raiseException("runtimeError", "Dict init must have even number of arguments");
+    if (numArgs % 2 != 0) {
+        raiseException("ParameterError", "Dict init must have even number of arguments");
+        return NONE_VAL;
+    }
     VALUE_DICT_VALUE(self) = createRuntimeDict(RUNTIME_DICT_INIT_SIZE);
     for (int i=0; i<numArgs; i+=2) dictInsertElement(VALUE_DICT_VALUE(self), args[i], args[i+1]);
     return NONE_VAL;
@@ -191,7 +196,7 @@ Value setSize(Value self, Value* args, int numArgs) {
 Value strAdd(Value self, Value* args, int numArgs) {
     // Check other object type
     if (VALUE_TYPE(args[0]) != BUILTIN_STR) {
-        raiseException("runtimeError", "Cannot add string to non-string object");
+        raiseException("TypeError", "Cannot add string to non-string object");
         return NONE_VAL;
     }
     char* otherStr = VALUE_STR_VALUE(args[0]);
@@ -224,7 +229,10 @@ Value type(Value self, Value* args, int numArgs) {
 
 Value input(Value self, Value* args, int numArgs) {
     if (numArgs == 1) printf("%s", VALUE_STR_VALUE(args[0]));
-    if (numArgs != 0 && numArgs != 1) raiseException("runtimeError", "Invalid number of arguments for input");
+    if (numArgs != 0 && numArgs != 1) {
+        raiseException("ParameterError", "Invalid number of arguments for input");
+        return NONE_VAL;
+    }
 
     char *line = NULL;
     size_t len = 0;
@@ -247,7 +255,10 @@ Value hasAttr(Value self, Value* args, int numArgs) {
     Value target = args[0];
     Value attrName = args[1];
     // Check if attrName is string
-    if (VALUE_TYPE(attrName) != BUILTIN_STR) raiseException("runtimeError", "Attribute name must be a string");
+    if (VALUE_TYPE(attrName) != BUILTIN_STR) {
+        raiseException("ParameterError", "Attribute name must be a string");
+        return NONE_VAL;
+    }
     if (!IS_MARKABLE_VAL(target)) return BOOL_VAL(false);
     // Try to find the attribute in the object
     Value result = ignoreNullGetAttr(target, VALUE_STR_VALUE(attrName));

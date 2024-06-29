@@ -11,17 +11,17 @@
 
 refTable* createRefTable(uint32_t size) {
     refTable* dict = (refTable*) malloc(sizeof(refTable));
-    if (dict == NULL) raiseException("dictError", "Failed to allocate memory for refTable.");
+    if (dict == NULL) raiseException("ReferenceTableError", "Failed to allocate memory for refTable.");
     dict->tableSize = size;
     dict->numEntries = 0;
     dict->entries = (refTableEntry**) calloc(size, sizeof(refTableEntry*));
-    if (dict->entries == NULL) raiseException("dictError", "Failed to allocate memory for dict entries.");
+    if (dict->entries == NULL) raiseException("ReferenceTableError", "Failed to allocate memory for dict entries.");
     return dict;
 }
 
 void resizeRefTable(refTable* dict, uint32_t newSize) {
     refTableEntry** newEntries = (refTableEntry**) calloc(newSize, sizeof(refTableEntry*));
-    if (newEntries == NULL) raiseException("dictError", "Failed to allocate memory for dict entries during resize");
+    if (newEntries == NULL) raiseException("ReferenceTableError", "Failed to allocate memory for dict entries during resize");
     // Rehash all entries
     for (uint32_t i = 0; i < dict->tableSize; ++i) {
         refTableEntry* entry = dict->entries[i];
@@ -51,7 +51,7 @@ void refTableInsert(refTable* dict, char* key, uint16_t value) {
     }
     // Key does not exist in dict, create new entry
     entry = (refTableEntry*) malloc(sizeof(refTableEntry));
-    if (entry == NULL) raiseException("dictError", "Failed to allocate memory for reference table entry");
+    if (entry == NULL) raiseException("ReferenceTableError", "Failed to allocate memory for reference table entry");
     entry->key = key;
     entry->value = value;
     entry->next = dict->entries[hash];  // Insert at head of linked list
@@ -60,7 +60,7 @@ void refTableInsert(refTable* dict, char* key, uint16_t value) {
 
     // Check if resize is needed
     if ((float)dict->numEntries / (float) dict->tableSize > 0.75) {
-        if (dict->tableSize >= (UINT32_MAX/2)) raiseException("dictError", "Reference table size exceeds maximum size during reallocation");
+        if (dict->tableSize >= (UINT32_MAX/2)) raiseException("ReferenceTableError", "Reference table size exceeds maximum size during reallocation");
         resizeRefTable(dict, dict->tableSize * 2);
     }
 }
@@ -82,7 +82,7 @@ uint16_t refTableGet(refTable* dict, char* key) {
         if (strcmp(entry->key, key) == 0) return entry->value;
         entry = entry->next;
     }
-    raiseException("dictError", "Key not found in reference table");
+    raiseException("ReferenceTableError", "Key not found in reference table");
     return 0;
 }
 
@@ -104,7 +104,7 @@ uint16_t getRefIndex(refTable* refTable, char* identifier) {
     // Check if object is already in refTable
     if (refTableContains(refTable, identifier)) return refTableGet(refTable, identifier);
     // If not, assign a new index and add to ref Table
-    if (refTable->numEntries >= UINT8_MAX-1) compilationError(0, 0, 0, "RefTable overflow");
+    if (refTable->numEntries >= UINT8_MAX-1) raiseException("ReferenceTableError", "RefTable overflow");
     uint16_t objIndex = refTable->numEntries;
     refTableInsert(refTable, identifier, objIndex);
     return objIndex;

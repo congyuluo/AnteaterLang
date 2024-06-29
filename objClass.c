@@ -16,7 +16,7 @@ objClass* createClass(char* name, uint32_t classID, Value initFunc, uint32_t pCl
     objClass* newClass = malloc(sizeof(objClass));
     classArray[classID] = newClass;
 
-    if (newClass == NULL) raiseException("objHashError", "Memory allocation for class failed");
+    if (newClass == NULL) raiseException("ObjHashError", "Memory allocation for class failed");
     newClass->classID = classID;
     newClass->pClassID = pClassID;
     newClass->className = addReference(name);
@@ -31,7 +31,7 @@ objClass* createClass(char* name, uint32_t classID, Value initFunc, uint32_t pCl
 
 void initClassArray() {
     classArray = malloc(sizeof(objClass*) * MAX_CLASS_NUM);
-    if (classArray == NULL) raiseException("objHashError", "Memory allocation for class array failed");
+    if (classArray == NULL) raiseException("ObjHashError", "Memory allocation for class array failed");
     // Set to null
     for (uint32_t i=0; i<MAX_CLASS_NUM; i++) classArray[i] = NULL;
 }

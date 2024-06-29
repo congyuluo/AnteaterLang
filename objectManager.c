@@ -20,7 +20,7 @@ void freeObjectManager() {
 }
 
 Object* createConstObj(objClass* c) {
-    if (isRuntime) raiseException("objManagerError", "Cannot create const object in runtime");
+    if (isRuntime) raiseException("ObjManagerError", "Cannot create const object in runtime");
     Object* newObj = addConst();
     newObj->type = c->classID;
     if (IS_SYSTEM_DEFINED_CLASS(c)) {
@@ -69,7 +69,7 @@ Object* createConstSetObject() {
 }
 
 Object* createRuntimeObj(objClass* c) {
-    if (!isRuntime) raiseException("objManagerError", "Cannot create runtime object prior to runtime");
+    if (!isRuntime) raiseException("ObjManagerError", "Cannot create runtime object prior to runtime");
     // Get slot
     Object* newObj = newObjectSlot();
 

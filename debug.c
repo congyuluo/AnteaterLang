@@ -218,7 +218,7 @@ void printInstr(uint64_t line, Chunk* c) {
         case OP_JUMP: printJumpOp("OP_JUMP", c, line); break;
         case OP_JUMP_IF_FALSE: printJumpOp("OP_JUMP_IF_FALSE", c, line); break;
         default:
-            raiseException("runtimeError", "Disassembler: Unknown opcode\n");
+            raiseException("DisassemblerError", "Disassembler: Unknown opcode\n");
     }
 }
 

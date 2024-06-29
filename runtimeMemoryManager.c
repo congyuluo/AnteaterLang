@@ -15,7 +15,7 @@ static inline void newBlock() {
     printf("Allocating new block\n");
 #endif
     RuntimeBlock* newBlock = (RuntimeBlock*) malloc(sizeof(RuntimeBlock));
-    if (newBlock == NULL) raiseException("objManagerError", "Memory allocation failed for new block");
+    if (newBlock == NULL) raiseException("ObjManagerError", "Memory allocation failed for new block");
     newBlock->nextBlock = memoryManager->headBlock;
     memoryManager->headBlock = newBlock;
     uint16_t newBlockID = newBlock->nextBlock == NULL ? 0 : newBlock->nextBlock->blockID + 1;
@@ -32,7 +32,7 @@ static inline void newBlock() {
 
 void initMemoryManager() {
     memoryManager = (RuntimeMemoryManager*) malloc(sizeof(RuntimeMemoryManager));
-    if (memoryManager == NULL) raiseException("objManagerError", "Memory allocation failed for memory manager");
+    if (memoryManager == NULL) raiseException("ObjManagerError", "Memory allocation failed for memory manager");
     memoryManager->freeStackTop = memoryManager->freeStack;
     memoryManager->headBlock = NULL;
     // Init runtime head
