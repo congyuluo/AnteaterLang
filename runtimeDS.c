@@ -12,9 +12,9 @@
 
 runtimeList* createRuntimeList(uint32_t size) {
     runtimeList* newList = (runtimeList*) malloc(sizeof(runtimeList));
-    if (newList == NULL) raiseException("ListError", "Failed to allocate memory for list.");
+    if (newList == NULL) raiseExceptionByName("ListError", "Failed to allocate memory for list.");
     newList->list = (Value*) malloc(sizeof(Value) * size);
-    if (newList->list == NULL) raiseException("ListError", "Failed to allocate memory for list elements.");
+    if (newList->list == NULL) raiseExceptionByName("ListError", "Failed to allocate memory for list elements.");
     newList->size = 0;
     newList->capacity = size;
     return newList;
@@ -22,11 +22,12 @@ runtimeList* createRuntimeList(uint32_t size) {
 
 void listAddElement(runtimeList* list, Value value) {
     if (list->size == list->capacity) {
-        if (list->size >= (UINT32_MAX/2)) raiseException("ListError", "List size exceeds maximum size during reallocation.");
+        if (list->size >= (UINT32_MAX/2))
+            raiseExceptionByName("ListError", "List size exceeds maximum size during reallocation.");
         // Double the capacity if the list is full
         list->capacity *= 2;
         Value* newList = (Value*) realloc(list->list, sizeof(Value) * list->capacity);
-        if (newList == NULL) raiseException("ListError", "Failed to reallocate memory for list elements.");
+        if (newList == NULL) raiseExceptionByName("ListError", "Failed to reallocate memory for list elements.");
         list->list = newList;
     }
     list->list[list->size++] = value;
@@ -39,16 +40,17 @@ uint32_t listAddElementReturnIndex(runtimeList* list, Value value) {
 
 void listInsertElement(runtimeList* list, uint32_t index, Value value) {
     if (index > list->size) {
-        raiseException("ParameterError", "List index out of range");
+        raiseExceptionByName("ParameterError", "List index out of range");
         return;
     }
 
     if (list->size == list->capacity) {
-        if (list->size >= (UINT32_MAX/2)) raiseException("ListError", "List size exceeds maximum size during reallocation.");
+        if (list->size >= (UINT32_MAX/2))
+            raiseExceptionByName("ListError", "List size exceeds maximum size during reallocation.");
         // Double the capacity if the list is full
         list->capacity *= 2;
         Value* newList = (Value*) realloc(list->list, sizeof(Value) * list->capacity);
-        if (newList == NULL) raiseException("ListError", "Failed to reallocate memory for list elements.");
+        if (newList == NULL) raiseExceptionByName("ListError", "Failed to reallocate memory for list elements.");
         list->list = newList;
     }
 
@@ -61,7 +63,7 @@ void listInsertElement(runtimeList* list, uint32_t index, Value value) {
 
 void listRemoveElement(runtimeList* list, uint32_t index) {
     if (index >= list->size) {
-        raiseException("ParameterError", "List index out of range");
+        raiseExceptionByName("ParameterError", "List index out of range");
         return;
     }
 
@@ -73,7 +75,7 @@ void listRemoveElement(runtimeList* list, uint32_t index) {
 
 void listSetElement(runtimeList* list, uint32_t index, Value value) {
     if (index >= list->size) {
-        raiseException("ParameterError", "List index out of range");
+        raiseExceptionByName("ParameterError", "List index out of range");
         return;
     }
     // Since index is within range of current list size, mark Value being replaced as GC removeRef
@@ -82,7 +84,7 @@ void listSetElement(runtimeList* list, uint32_t index, Value value) {
 
 Value listGetElement(runtimeList* list, uint32_t index) {
     if (index >= list->size) {
-        raiseException("ParameterError", "List index out of range");
+        raiseExceptionByName("ParameterError", "List index out of range");
         return NONE_VAL;
     }
     return list->list[index];
@@ -99,7 +101,7 @@ uint32_t listIndexOfElement(runtimeList* list, Value value) {
     for (uint32_t i = 0; i < list->size; i++) {
         if (compareValue(list->list[i], value)) return i;
     }
-    raiseException("ParameterError", "Element not found in list");
+    raiseExceptionByName("ParameterError", "Element not found in list");
     return 0;
 }
 
@@ -134,9 +136,10 @@ uint32_t hashObject(Value key) {
         return hashString(VALUE_STR_VALUE(key));
     } else { // Search for hashString function
         Value objHashFunc = ignoreNullGetAttr(key, "hashString");
-        if (IS_INTERNAL_NULL(objHashFunc)) raiseException("DictError", "Hash function undefined.");
+        if (IS_INTERNAL_NULL(objHashFunc)) raiseExceptionByName("DictError", "Hash function undefined.");
         Value valueObj = execInput(objHashFunc, key, NULL, 0);
-        if (VALUE_TYPE(valueObj) != VAL_NUMBER) raiseException("DictError", "Non number type hashString function return.");
+        if (VALUE_TYPE(valueObj) != VAL_NUMBER)
+            raiseExceptionByName("DictError", "Non number type hashString function return.");
         return (uint32_t) VALUE_NUMBER_VALUE(valueObj);
     }
 }
@@ -145,17 +148,18 @@ uint32_t hashObject(Value key) {
 
 runtimeDict* createRuntimeDict(uint32_t size) {
     runtimeDict* dict = (runtimeDict*) malloc(sizeof(runtimeDict));
-    if (dict == NULL) raiseException("DictError", "Failed to allocate memory for dict.");
+    if (dict == NULL) raiseExceptionByName("DictError", "Failed to allocate memory for dict.");
     dict->tableSize = size;
     dict->numEntries = 0;
     dict->entries = (runtimeDictEntry**) calloc(size, sizeof(runtimeDictEntry*));
-    if (dict->entries == NULL) raiseException("DictError", "Failed to allocate memory for dict entries.");
+    if (dict->entries == NULL) raiseExceptionByName("DictError", "Failed to allocate memory for dict entries.");
     return dict;
 }
 
 void resizeRuntimeDict(runtimeDict* dict, uint32_t newSize) {
     runtimeDictEntry** newEntries = (runtimeDictEntry**) calloc(newSize, sizeof(runtimeDictEntry*));
-    if (newEntries == NULL) raiseException("DictError", "Failed to allocate memory for dict entries during resize");
+    if (newEntries == NULL)
+        raiseExceptionByName("DictError", "Failed to allocate memory for dict entries during resize");
     // Rehash all entries
     for (uint32_t i = 0; i < dict->tableSize; ++i) {
         runtimeDictEntry* entry = dict->entries[i];
@@ -185,7 +189,7 @@ void dictInsertElement(runtimeDict* dict, Value key, Value value) {
     }
     // Key does not exist in dict, create new entry
     entry = (runtimeDictEntry*) malloc(sizeof(runtimeDictEntry));
-    if (entry == NULL) raiseException("DictError", "Failed to allocate memory for dict entry");
+    if (entry == NULL) raiseExceptionByName("DictError", "Failed to allocate memory for dict entry");
     entry->key = key;
     entry->value = value;
     entry->next = dict->entries[hash];  // Insert at head of linked list
@@ -194,7 +198,8 @@ void dictInsertElement(runtimeDict* dict, Value key, Value value) {
 
     // Check if resize is needed
     if ((float)dict->numEntries / (float) dict->tableSize > MAX_LOAD_FACTOR) {
-        if (dict->tableSize >= (UINT32_MAX/2)) raiseException("DictError", "Dict size exceeds maximum size during reallocation");
+        if (dict->tableSize >= (UINT32_MAX/2))
+            raiseExceptionByName("DictError", "Dict size exceeds maximum size during reallocation");
         resizeRuntimeDict(dict, dict->tableSize * 2);
     }
 }
@@ -206,7 +211,7 @@ Value dictGetElement(runtimeDict* dict, Value key) {
         if (compareValue(entry->key, key)) return entry->value;
         entry = entry->next;
     }
-    raiseException("ParameterError", "Key not found in dictionary");
+    raiseExceptionByName("ParameterError", "Key not found in dictionary");
     return NONE_VAL;
 }
 
@@ -239,7 +244,7 @@ void dictRemoveElement(runtimeDict* dict, Value key) {
         prevEntry = entry;
         entry = entry->next;
     }
-    raiseException("ParameterError", "Key not found in dictionary");
+    raiseExceptionByName("ParameterError", "Key not found in dictionary");
 }
 
 Value dictStrGet(runtimeDict* dict, char* key) {
@@ -284,7 +289,7 @@ void freeRuntimeDict(runtimeDict* dict) {
 
 runtimeSet* createRuntimeSet(uint32_t size) {
     runtimeSet* set = (runtimeSet*) malloc(sizeof(runtimeSet));
-    if (set == NULL) raiseException("SetError", "Failed to allocate memory for set");
+    if (set == NULL) raiseExceptionByName("SetError", "Failed to allocate memory for set");
     set->dict = createRuntimeDict(size);
     return set;
 }

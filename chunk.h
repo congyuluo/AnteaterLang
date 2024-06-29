@@ -48,6 +48,7 @@ typedef enum OpCode {
     OP_SET_HANDLER,
     OP_SET_ALL_HANDLER,
     OP_POP_HANDLER,
+    OP_RAISE,
     OP_EXEC_FUNCTION_ENFORCE_RETURN,
     OP_EXEC_FUNCTION_IGNORE_RETURN,
     OP_EXEC_METHOD_ENFORCE_RETURN,
@@ -57,7 +58,7 @@ typedef enum OpCode {
     OP_RETURN,
     OP_RETURN_NONE,
     OP_JUMP,
-    OP_JUMP_IF_FALSE
+    OP_JUMP_IF_FALSE,
 } OpCode;
 
 typedef enum specialAssignment {

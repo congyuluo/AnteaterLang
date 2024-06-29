@@ -293,6 +293,7 @@ ParseRule rules[] = {
         [KEYWORD_GLOBAL]      = {unary,    NULL,   PREC_UNARY},
         [KEYWORD_HANDLE]      = {NULL, NULL, PREC_NONE},
         [KEYWORD_TRY]         = {NULL, NULL, PREC_NONE},
+        [KEYWORD_RAISE]       = {NULL, NULL, PREC_NONE},
         [KEYWORD_EXCEPTION]   = {NULL, NULL, PREC_NONE},
         [KEYWORD_UNRECOVERABLE] = {NULL, NULL, PREC_NONE},
 
@@ -1098,6 +1099,32 @@ void exceptionHandlerStatement() {
     }
 }
 
+void raiseStatement() {
+    token* raiseToken = currentToken;
+    // Expect identifier
+    incCheckType(IDENTIFIER, "Expected identifier after 'raise'");
+    char* errorName = TOKEN_VALUE(currentToken);
+
+    incCheckNull();
+
+    if (currentToken->type == LEFT_PARENTHESES) {
+        incCheckNull();
+        expression(true);
+        checkType(RIGHT_PARENTHESES, "Expected ')' after raise statement expression");
+        writeOp(currentChunk, OP_RAISE, raiseToken->line, raiseToken->index, raiseToken->sourceIndex);
+        writeChunk32(currentChunk, getExceptionID(errorName));
+        writeChunk8(currentChunk, 1);
+        incCheckNull();
+    } else if (currentToken->type == SEMICOLON) {
+        writeOp(currentChunk, OP_RAISE, raiseToken->line, raiseToken->index, raiseToken->sourceIndex);
+        writeChunk32(currentChunk, getExceptionID(errorName));
+        writeChunk8(currentChunk, 0);
+    } else {
+        compilationError(currentToken->line, currentToken->index, currentToken->sourceIndex, "Expected '(' or ';' after raise statement");
+    }
+    checkType(SEMICOLON, "Expected ';' after raise statement");
+}
+
 void standardStatement() {
     if (isAssignmentStatement()) {
         assignment();
@@ -1233,6 +1260,11 @@ void statement() {
         }
         case KEYWORD_HANDLE: {
             exceptionHandlerStatement();
+            incCheckNull();
+            break;
+        }
+        case KEYWORD_RAISE: {
+            raiseStatement();
             incCheckNull();
             break;
         }

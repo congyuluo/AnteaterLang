@@ -1,6 +1,10 @@
-unrecoverable exception a;
+exception TestException;
 
 
 void function main() {
-    print("Hello World");
+    handle (TestException) {
+        println("Done");
+    } try {
+        raise TestException("true");
+    }
 }

@@ -171,6 +171,12 @@ void printPopHandler(uint64_t line) {
     printf("    Pop Count -> %u", GET_BYTE(line, 1));
 }
 
+void printRaise(uint64_t line) {
+    printf("OP_RAISE\n");
+    printf("    Error # -> %u\n", GET_DWORD(line, 1));
+    printf("    HasMessage -> %u", GET_WORD(line, 5));
+}
+
 void printInstr(uint64_t line, Chunk* c) {
     OpCode op = (uint8_t)(line & 0xFF);
     switch(op) {
@@ -207,6 +213,7 @@ void printInstr(uint64_t line, Chunk* c) {
         case OP_SET_HANDLER: printSetHandler(line); break;
         case OP_SET_ALL_HANDLER: printSetAllHanler(line); break;
         case OP_POP_HANDLER: printPopHandler(line); break;
+        case OP_RAISE: printRaise(line); break;
         case OP_EXEC_FUNCTION_ENFORCE_RETURN: printPrelinkedExecOp("OP_EXEC_FUNCTION_ENFORCE_RETURN", c, line); break;
         case OP_EXEC_FUNCTION_IGNORE_RETURN: printPrelinkedExecOp("OP_EXEC_FUNCTION_IGNORE_RETURN", c, line); break;
         case OP_EXEC_METHOD_ENFORCE_RETURN: printExecOp("OP_EXEC_METHOD_ENFORCE_RETURN", c, line); break;
@@ -218,7 +225,7 @@ void printInstr(uint64_t line, Chunk* c) {
         case OP_JUMP: printJumpOp("OP_JUMP", c, line); break;
         case OP_JUMP_IF_FALSE: printJumpOp("OP_JUMP_IF_FALSE", c, line); break;
         default:
-            raiseException("DisassemblerError", "Disassembler: Unknown opcode\n");
+            raiseExceptionByName("DisassemblerError", "Disassembler: Unknown opcode\n");
     }
 }
 
@@ -329,6 +336,7 @@ void printToken(token* t) {
         case KEYWORD_UNRECOVERABLE: printf("KEYWORD_UNRECOVERABLE"); break;
         case KEYWORD_HANDLE: printf("KEYWORD_HANDLE"); break;
         case KEYWORD_TRY: printf("KEYWORD_TRY"); break;
+        case KEYWORD_RAISE: printf("KEYWORD_RAISE"); break;
 
         // Identifiers
         case IDENTIFIER: printf("IDENTIFIER"); break;

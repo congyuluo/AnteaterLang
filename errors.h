@@ -17,6 +17,7 @@ void attachSource(char* s, char* sourceName);
 void attachChunkArray(Chunk** ca, uint32_t size);
 
 typedef struct Exception {
+    char* name;
     uint16_t ID;
     bool fatal;
 } Exception;
@@ -29,7 +30,9 @@ uint16_t getExceptionID(char* name);
 
 void addBuiltinExceptions(refTable* exceptionRefTable);
 
-void raiseException(char* name, char* message);
+void raiseExceptionById(uint32_t id, char* message);
+
+void raiseExceptionByName(char* name, char* message);
 
 void parsingError(uint16_t line, uint8_t index, uint8_t sourceIndex, char *message);
 

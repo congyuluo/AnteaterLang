@@ -65,7 +65,8 @@ const char *keywords[] = {
         "exception",
         "unrecoverable",
         "handle",
-        "try"
+        "try",
+        "raise"
 };
 
 // List of keyword token types
@@ -97,7 +98,8 @@ tokenType keywordTypes[] = {
         KEYWORD_EXCEPTION,
         KEYWORD_UNRECOVERABLE,
         KEYWORD_HANDLE,
-        KEYWORD_TRY
+        KEYWORD_TRY,
+        KEYWORD_RAISE
 };
 
 tokenizer* Tokenizer;

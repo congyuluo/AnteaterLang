@@ -109,6 +109,7 @@ void addException(char* name, bool fatal) {
     // Set at array index
     exceptionArray[index].ID = index;
     exceptionArray[index].fatal = fatal;
+    exceptionArray[index].name = name;
 }
 
 uint16_t getExceptionID(char* name) {
@@ -140,19 +141,18 @@ void addBuiltinExceptions(refTable* exceptionRefTable) {
     addException("ValueError", false);
     addException("TypeError", false);
     addException("ReferenceError", false);
-
 }
 
-void raiseException(char* name, char* message) {
+void raiseExceptionById(uint32_t id, char* message) {
     if (erTable == NULL) exceptionManagerError("Uninitiated global reference to exception table");
-    if (!refTableContains(erTable, name)) exceptionManagerError("Exception could not be found");
 
+    // Find the current exception
+    Exception* currException = &exceptionArray[id];
+    char* exceptionName = exceptionArray[id].name;
+
+    bool isFatal = false;
     // If runtime, try to handle it
     if (isRuntime) {
-        // Find the current exception
-        uint32_t currErrorIndex = getRefIndex(erTable, name);
-        Exception* currException = &exceptionArray[currErrorIndex];
-
         // Determine if exception is unrecoverable
         if (!currException->fatal) {
             exceptionHandler* currHandler = vm->handlerStackTop -1;
@@ -162,7 +162,7 @@ void raiseException(char* name, char* message) {
                     handled = true;
                     break;
                 } else { // Else, check type
-                    if (currHandler->type == currErrorIndex) {
+                    if (currHandler->type == id) {
                         handled = true;
                         break;
                     }
@@ -182,16 +182,30 @@ void raiseException(char* name, char* message) {
                 return;
             }
         } else {
-            fprintf(stderr, "Fatal - ");
+            // Set to fatal
+            isFatal = true;
         }
     }
 
     // If not, just quit and print message
     // Print error message
-    fprintf(stderr, "\n%s: %s\n", name, message == NULL ? "" : message);
+    if (isFatal) {
+        fprintf(stderr, "\nUnrecoverable - %s: %s\n", exceptionName, message == NULL ? "" : message);
+    } else {
+        fprintf(stderr, "\n%s: %s\n", exceptionName, message == NULL ? "" : message);
+    }
+
     // Print traceback if possible
     if (isRuntime) printRuntimeTraceback();
     exit(EXIT_FAILURE);
+}
+
+void raiseExceptionByName(char* name, char* message) {
+    if (erTable == NULL) exceptionManagerError("Uninitiated global reference to exception table");
+    if (!refTableContains(erTable, name)) exceptionManagerError("Exception could not be found");
+
+    uint32_t currErrorIndex = getRefIndex(erTable, name);
+    raiseExceptionById(currErrorIndex, message);
 }
 
 // Pre-runtime errors

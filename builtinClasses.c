@@ -18,7 +18,7 @@
 #define DEF_BUILTIN_CFUNC_METHOD_VALUE(in, out, cFunc) OBJECT_VAL(createConstCallableObject(CREATE_CFUNC_METHOD(in, out, cFunc)), BUILTIN_CALLABLE)
 #define DEF_BUILTIN_CFUNC_FUNCTION_VALUE(in, out, cFunc) OBJECT_VAL(createConstCallableObject(CREATE_CFUNC_FUNCTION(in, out, cFunc)), BUILTIN_CALLABLE)
 
-#define CHECK_NUM_TYPE(val) if (VALUE_TYPE(val) != VAL_NUMBER) raiseException("runtimeError", "Value is not of type num")
+#define CHECK_NUM_TYPE(val) if (VALUE_TYPE(val) != VAL_NUMBER) raiseExceptionByName("TypeError", "Value is not of type num")
 
 // Builtin classes
 objClass* callableClass;
@@ -66,7 +66,7 @@ Value equalPrim(Value self, Value* args, int numArgs) {
             resultBool = strcmp(VALUE_STR_VALUE(self), VALUE_STR_VALUE(otherObj)) == 0;
             break;
         default: {
-            raiseException("InternalError", "Unsupported type for equalPrim"); // No return needed for fatal error types
+            raiseExceptionByName("InternalError", "Unsupported type for equalPrim"); // No return needed for fatal error types
         }
 
     }
@@ -89,25 +89,37 @@ Value listAdd(Value self, Value* args, int numArgs) {
 }
 
 Value listInsert(Value self, Value* args, int numArgs) {
-    CHECK_NUM_TYPE(args[0]);
+    if (VALUE_TYPE(args[0]) != VAL_NUMBER) {
+        raiseExceptionByName("TypeError", "Value is not of type num");
+        return NONE_VAL;
+    }
     listInsertElement(VALUE_LIST_VALUE(self), VALUE_NUMBER_VALUE(args[0]), args[1]);
     return NONE_VAL;
 }
 
 Value listSet(Value self, Value* args, int numArgs) {
-    CHECK_NUM_TYPE(args[0]);
+    if (VALUE_TYPE(args[0]) != VAL_NUMBER) {
+        raiseExceptionByName("TypeError", "Value is not of type num");
+        return NONE_VAL;
+    }
     listSetElement(VALUE_LIST_VALUE(self),VALUE_NUMBER_VALUE(args[0]), args[1]);
     return NONE_VAL;
 }
 
 Value listRemove(Value self, Value* args, int numArgs) {
-    CHECK_NUM_TYPE(args[0]);
+    if (VALUE_TYPE(args[0]) != VAL_NUMBER) {
+        raiseExceptionByName("TypeError", "Value is not of type num");
+        return NONE_VAL;
+    }
     listRemoveElement(VALUE_LIST_VALUE(self),VALUE_NUMBER_VALUE(args[0]));
     return NONE_VAL;
 }
 
 Value listGet(Value self, Value* args, int numArgs) {
-    CHECK_NUM_TYPE(args[0]);
+    if (VALUE_TYPE(args[0]) != VAL_NUMBER) {
+        raiseExceptionByName("TypeError", "Value is not of type num");
+        return NONE_VAL;
+    }
     return listGetElement(VALUE_LIST_VALUE(self), VALUE_NUMBER_VALUE(args[0]));
 }
 
@@ -131,7 +143,7 @@ Value listSize(Value self, Value* args, int numArgs) {
 // Dict
 Value initDict(Value self, Value* args, int numArgs) {
     if (numArgs % 2 != 0) {
-        raiseException("ParameterError", "Dict init must have even number of arguments");
+        raiseExceptionByName("ParameterError", "Dict init must have even number of arguments");
         return NONE_VAL;
     }
     VALUE_DICT_VALUE(self) = createRuntimeDict(RUNTIME_DICT_INIT_SIZE);
@@ -197,7 +209,7 @@ Value setSize(Value self, Value* args, int numArgs) {
 Value strAdd(Value self, Value* args, int numArgs) {
     // Check other object type
     if (VALUE_TYPE(args[0]) != BUILTIN_STR) {
-        raiseException("TypeError", "Cannot add string to non-string object");
+        raiseExceptionByName("TypeError", "Cannot add string to non-string object");
         return NONE_VAL;
     }
     char* otherStr = VALUE_STR_VALUE(args[0]);
@@ -231,7 +243,7 @@ Value type(Value self, Value* args, int numArgs) {
 Value input(Value self, Value* args, int numArgs) {
     if (numArgs == 1) printf("%s", VALUE_STR_VALUE(args[0]));
     if (numArgs != 0 && numArgs != 1) {
-        raiseException("ParameterError", "Invalid number of arguments for input");
+        raiseExceptionByName("ParameterError", "Invalid number of arguments for input");
         return NONE_VAL;
     }
 
@@ -257,7 +269,7 @@ Value hasAttr(Value self, Value* args, int numArgs) {
     Value attrName = args[1];
     // Check if attrName is string
     if (VALUE_TYPE(attrName) != BUILTIN_STR) {
-        raiseException("ParameterError", "Attribute name must be a string");
+        raiseExceptionByName("ParameterError", "Attribute name must be a string");
         return NONE_VAL;
     }
     if (!IS_MARKABLE_VAL(target)) return BOOL_VAL(false);

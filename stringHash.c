@@ -25,11 +25,11 @@ uint32_t hashString(char* str) {
 
 HashTable* createHashTable(uint32_t table_size) {
     HashTable* table = malloc(sizeof(HashTable));
-    if (table == NULL) raiseException("StrHashError", "String hashString table allocation failed");
+    if (table == NULL) raiseExceptionByName("StrHashError", "String hashString table allocation failed");
     table->table_size = table_size;
     table->num_entries = 0;
     table->entries = calloc(table->table_size, sizeof(Entry*));
-    if (table->entries == NULL) raiseException("StrHashError", "String hashString table allocation failed");
+    if (table->entries == NULL) raiseExceptionByName("StrHashError", "String hashString table allocation failed");
 
     return table;
 }
@@ -61,14 +61,14 @@ char* internalInsert(HashTable* table, char* key, uint32_t value) {
     while (entry != NULL) {
         if (strcmp(entry->key, key) == 0) {
             entry->value = value;
-            raiseException("StrHashError", "Inserting duplicate key in string hashString table");
+            raiseExceptionByName("StrHashError", "Inserting duplicate key in string hashString table");
             return NULL;
         }
         entry = entry->next;
     }
 
     entry = malloc(sizeof(Entry));
-    if (entry == NULL) raiseException("StrHashError", "String hashString table entry allocation failed");
+    if (entry == NULL) raiseExceptionByName("StrHashError", "String hashString table entry allocation failed");
     char* newKey = strdup(key);
     entry->key = newKey;
     entry->value = value;
@@ -170,14 +170,15 @@ void delete(HashTable* table, char* key) {
 void resize(HashTable* table) {
     assert(table != NULL);
 
-    if (table->table_size >= (UINT32_MAX / 2)) raiseException("StrHashError", "String hashString table size exceeds maximum during resize");
+    if (table->table_size >= (UINT32_MAX / 2))
+        raiseExceptionByName("StrHashError", "String hashString table size exceeds maximum during resize");
     uint32_t old_table_size = table->table_size;
     Entry** old_entries = table->entries;
 
     table->table_size *= 2;
     table->num_entries = 0;
     table->entries = calloc(table->table_size, sizeof(Entry*));
-    if (table->entries == NULL) raiseException("StrHashError", "String hashString table reallocation failed");
+    if (table->entries == NULL) raiseExceptionByName("StrHashError", "String hashString table reallocation failed");
 
     for (uint32_t i = 0; i < old_table_size; i++) {
         Entry* entry = old_entries[i];
@@ -255,7 +256,7 @@ void removeReference(char* key) {
     if (value == NULL) {
         fprintf(stderr, "%s\n", key);
         // Error
-        raiseException("StrHashError", "Key not found");
+        raiseExceptionByName("StrHashError", "Key not found");
     } else {
         // If found, decrement the reference count
         (*value)--;

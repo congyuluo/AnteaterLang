@@ -87,6 +87,7 @@ typedef enum tokenType {
     KEYWORD_UNRECOVERABLE,
     KEYWORD_HANDLE,
     KEYWORD_TRY,
+    KEYWORD_RAISE,
 
     // Identifier
     IDENTIFIER
