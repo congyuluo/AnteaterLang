@@ -16,6 +16,7 @@ struct RuntimeBlock {
     Object** freeStackTop;
     uint32_t availableSlots;
     uint16_t blockID;
+    bool revived;
 };
 
 typedef struct PriorityQueue {

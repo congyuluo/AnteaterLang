@@ -6,11 +6,24 @@
 #include "errors.h"
 #include "vm.h"
 
+uint32_t blockIDCounter;
 PriorityQueue* blockQueue;
+
+RuntimeBlock** orderedBlockArray;
+uint32_t orderedBlockArraySize;
 
 Object* rtHead;
 
 // Block Operations
+
+static inline void appendBlock(RuntimeBlock* block) {
+    if (block->blockID == orderedBlockArraySize) {
+        orderedBlockArraySize *= PRIORITY_QUEUE_GROWTH_FACTOR;
+        orderedBlockArray = (RuntimeBlock**) realloc(orderedBlockArray, orderedBlockArraySize * sizeof(RuntimeBlock*));
+        if (orderedBlockArray == NULL) raiseExceptionByName("ObjManagerError", "Memory reallocation failed for ordered block array.");
+    }
+    orderedBlockArray[orderedBlockArraySize++] = block;
+}
 
 static inline RuntimeBlock* newBlock() {
 #ifdef PRINT_MEMORY_INFO
@@ -18,10 +31,24 @@ static inline RuntimeBlock* newBlock() {
 #endif
     RuntimeBlock* newBlock = (RuntimeBlock*) malloc(sizeof(RuntimeBlock));
     if (newBlock == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for new block");
+
+    // Set block ID
+    newBlock->blockID = blockIDCounter++;
+    // Append to block queue
+    appendBlock(newBlock);
+
+    // Set revived flag
+    newBlock->revived = false;
+
     // Insert new free slots onto free stack
     Object** stackTop = newBlock->freeStack;
     Object* newSlot = (Object*) newBlock->block;
-    for (int i = 0; i < RUNTIME_BLOCK_SIZE; i++) *stackTop++ = newSlot++;
+    for (int i = 0; i < RUNTIME_BLOCK_SIZE; i++) {
+        // Set object's block id to the new block
+        newSlot->blockID = newBlock->blockID;
+        *stackTop++ = newSlot++;
+    }
+
     // Update free stack top
     newBlock->freeStackTop = stackTop;
     // Set occupied slots
@@ -29,7 +56,35 @@ static inline RuntimeBlock* newBlock() {
     return newBlock;
 }
 
+static inline Object* allocateFromBlock(RuntimeBlock* block) {
+    if (block->availableSlots == 0) {
+        raiseExceptionByName("ObjManagerError", "Allocating from full block.");
+    }
+    block->availableSlots--;
+    return *block->freeStackTop--;
+}
+
+static inline void deallocateFromBlock(RuntimeBlock* block, Object* slot) {
+    if (block->availableSlots == RUNTIME_BLOCK_SIZE) {
+        raiseExceptionByName("ObjManagerError", "Deallocating from empty block.");
+    } else if (block->availableSlots == 0) {
+        // Set revived flag
+        block->revived = true;
+    }
+    *++block->freeStackTop = slot;
+    block->availableSlots++;
+}
+
 // Priority Queue Operations
+
+void printPriorityQueue() {
+    printf("Priority Queue: \n[");
+    for (uint32_t i = 0; i < blockQueue->size; i++) {
+        if (i > 0) printf(", ");
+        printf("Block #%u: %u", blockQueue->data[i]->blockID, blockQueue->data[i]->availableSlots);
+    }
+    printf("]\n");
+}
 
 static inline void swap(RuntimeBlock** a, RuntimeBlock** b) {
     RuntimeBlock* temp = *a;
@@ -39,7 +94,7 @@ static inline void swap(RuntimeBlock** a, RuntimeBlock** b) {
 
 void heapifyUp(uint32_t index) {
     while (index > 0) {
-        int parent = (index - 1) / 2;
+        uint32_t parent = (index - 1) / 2;
         if (blockQueue->data[parent]->availableSlots <= blockQueue->data[index]->availableSlots) break;
         swap(&blockQueue->data[parent], &blockQueue->data[index]);
         index = parent;
@@ -47,7 +102,7 @@ void heapifyUp(uint32_t index) {
 }
 
 void heapifyDown(uint32_t index) {
-    int left, right, smallest;
+    uint32_t left, right, smallest;
     while (1) {
         left = 2 * index + 1;
         right = 2 * index + 2;
@@ -67,18 +122,15 @@ void heapifyDown(uint32_t index) {
 }
 
 void initPriorityQueue() {
-    blockQueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+    blockQueue = (PriorityQueue*) malloc(sizeof(PriorityQueue));
     if (blockQueue == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for priority queue.");
-    blockQueue->data = (RuntimeBlock**)malloc(sizeof(RuntimeBlock*) * INITIAL_PRIORITY_QUEUE_CAPACITY);
+    blockQueue->data = (RuntimeBlock**) malloc(sizeof(RuntimeBlock*) * INITIAL_PRIORITY_QUEUE_CAPACITY);
     if (blockQueue->data == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for priority queue data.");
     blockQueue->size = 0;
     blockQueue->capacity = INITIAL_PRIORITY_QUEUE_CAPACITY;
 }
 
-void freePriorityQueue() {
-    // Free every block
-    for (int i = 0; i < blockQueue->size; i++) free(blockQueue->data[i]);
-    // Free block data
+static inline void freePriorityQueue() {
     free(blockQueue->data);
     free(blockQueue);
 }
@@ -89,13 +141,21 @@ void resizePriorityQueue() {
     if (blockQueue->data == NULL) raiseExceptionByName("ObjManagerError", "Memory reallocation failed for priority queue data.");
 }
 
-void addBlock(RuntimeBlock* block) {
+void pqAddBlock(RuntimeBlock* block) {
     if (blockQueue->size == blockQueue->capacity) {
         resizePriorityQueue(blockQueue);
     }
     blockQueue->data[blockQueue->size] = block;
     heapifyUp(blockQueue->size);
     blockQueue->size++;
+#ifdef PRINT_BLOCK_ORDER
+    printf("Block %d added to priority queue\n", block->blockID);
+    printPriorityQueue();
+#endif
+}
+
+static inline void reHeapify() {
+    for (uint32_t i = (blockQueue->size / 2) - 1; i >= 0; i--) heapifyDown(i);
 }
 
 void updateBlock(uint32_t blockID, uint32_t newAvailableSlots) {
@@ -109,7 +169,7 @@ void updateBlock(uint32_t blockID, uint32_t newAvailableSlots) {
     }
 }
 
-RuntimeBlock* removeBlock(uint32_t blockID) {
+void pqRemoveBlock(uint32_t blockID) {
     int index = -1;
     for (uint32_t i = 0; i < blockQueue->size; i++) {
         if (blockQueue->data[i]->blockID == blockID) {
@@ -117,50 +177,64 @@ RuntimeBlock* removeBlock(uint32_t blockID) {
             break;
         }
     }
-    if (index == -1) return NULL;
+    if (index == -1) raiseExceptionByName("ObjManagerError", "Block not found in priority queue.");
 
-    RuntimeBlock* removedBlock = blockQueue->data[index];
     blockQueue->data[index] = blockQueue->data[blockQueue->size - 1];
     blockQueue->size--;
     heapifyDown(index);
-    return removedBlock;
+#ifdef PRINT_BLOCK_ORDER
+    printf("Block %d removed from priority queue\n", blockID);
+    printPriorityQueue();
+#endif
 }
 
-RuntimeBlock* getTopBlock(PriorityQueue* pq) {
-    if (pq->size == 0) return NULL;
+static inline RuntimeBlock* getTopBlock(PriorityQueue* pq) {
+    if (pq->size == 0) raiseExceptionByName("ObjManagerError", "Getting top block from empty priority queue.");
     return pq->data[0];
 }
-
 
 // Memory Manager Operations
 
 void initMemoryManager() {
     // Init priority queue
     initPriorityQueue();
-    // Create initial block
-    RuntimeBlock* initialBlock = newBlock();
-    // Insert initial block into priority queue
-    addBlock(initialBlock);
+    // Set block ID counter
+    blockIDCounter = 0;
+    // Allocate ordered block array
+    orderedBlockArray = (RuntimeBlock**) malloc(sizeof(RuntimeBlock*) * INITIAL_PRIORITY_QUEUE_CAPACITY);
+    if (orderedBlockArray == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for ordered block array.");
+    // Create initial block & Insert initial block into priority queue
+    pqAddBlock(newBlock());
     // Init runtime head
     rtHead = NULL;
-    // Allocate head block
-    newBlock();
 }
 
 void freeMemoryManager() {
     // Free priority queue
     freePriorityQueue();
+    // Free all blocks from ordered block array
+    for (uint32_t i = 0; i < blockIDCounter; i++) free(orderedBlockArray[i]);
+    // Free ordered block array
+    free(orderedBlockArray);
 }
 
 // Forward declaration
 static inline void collectGarbage();
 
 Object* newObjectSlot() {
-    // First attempt to free garbage if free stack is empty
-    if (memoryManager->freeStackTop == memoryManager->freeStack) collectGarbage();
-    // If free stack is still empty, allocate new block
-    if (memoryManager->freeStackTop == memoryManager->freeStack) newBlock();
-    Object* newSlot = *--memoryManager->freeStackTop;
+    // First, check is priority queue is empty
+    if (blockQueue->size == 0) collectGarbage();
+    // If priority queue is still empty, allocate new block
+    if (blockQueue->size == 0) pqAddBlock(newBlock());
+    // Get top block
+    RuntimeBlock* topBlock = getTopBlock(blockQueue);
+    // Allocate from top block
+    Object* newSlot = allocateFromBlock(topBlock);
+    // Check if the block is full
+    if (topBlock->availableSlots == 0) {
+        // Remove the block from priority queue
+        pqRemoveBlock(topBlock->blockID);
+    }
     newSlot->next = rtHead;
     rtHead = newSlot;
     return newSlot;
@@ -308,14 +382,12 @@ static inline void markObject() {
     }
 }
 
-static inline void sweepObject() {
-#ifdef PRINT_GC_INFO
+static inline uint32_t sweepObject() {
     uint32_t removedCount = 0;
-#endif
 #ifdef PRINT_GC_REMOVAL
     uint32_t totalCount = 0;
 #endif
-//    uint64_t blockBitMap = 0;
+
     Object* currObj = rtHead;
     Object* prevObj = NULL;
     while (currObj != NULL) {
@@ -331,9 +403,7 @@ static inline void sweepObject() {
             printObject(currObj);
             printf("\n");
 #endif
-#ifdef PRINT_GC_INFO
             removedCount++;
-#endif
             // LL delete
             if (prevObj == NULL) {
                 rtHead = currObj->next;
@@ -341,8 +411,9 @@ static inline void sweepObject() {
                 prevObj->next = currObj->next;
             }
             Object* nextObj = currObj->next;
-            // Push to free stack
-            *memoryManager->freeStackTop++ = currObj;
+
+            // Deallocate object
+            deallocateFromBlock(orderedBlockArray[currObj->blockID], currObj);
             currObj = nextObj;
         }
 #ifdef PRINT_GC_REMOVAL
@@ -352,9 +423,28 @@ static inline void sweepObject() {
 #ifdef PRINT_GC_INFO
     printf("GC removed %u objects\n", removedCount);
 #endif
+    return removedCount;
 }
 
 static inline void collectGarbage() {
+    // Mark and sweep
     markObject();
-    sweepObject();
+    // Sweep
+    if (sweepObject() > 0) {
+        // Reorder block queue
+        reHeapify();
+        // Iterate to find possibly revived blocks
+        for (uint32_t i=0; i<blockIDCounter; i++) {
+            if (orderedBlockArray[i]->revived) {
+                // Reset flag
+                orderedBlockArray[i]->revived = false;
+                // Insert into heap
+                pqAddBlock(orderedBlockArray[i]);
+            }
+        }
+    }
+#ifdef PRINT_BLOCK_ORDER
+    printf("GC Cleaned\n");
+    printPriorityQueue();
+#endif
 }
