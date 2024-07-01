@@ -57,7 +57,8 @@
 
 // Runtime Memory Management
 #define RUNTIME_BLOCK_SIZE 64
-#define FREE_STACK_SIZE 128
+#define INITIAL_PRIORITY_QUEUE_CAPACITY 10
+#define PRIORITY_QUEUE_GROWTH_FACTOR 2
 //#define PRINT_MEMORY_INFO
 
 // Error Tracing

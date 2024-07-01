@@ -852,7 +852,7 @@ void assignment() {
     // Rewind by one instruction
     currentChunk->count -= 1;
     // Parse right hand side
-    if (!isAssignmentOperator(TOKEN_TYPE(currentToken))) compilationError(currentToken->line, currentToken->index, currentToken->sourceIndex, "Internal error: assignment token mismatch");
+    if (!isAssignmentOperator(TOKEN_TYPE(currentToken))) compilationError(currentToken->line, currentToken->index, currentToken->sourceIndex, "Assignment token mismatch");
     token* assignmentToken = currentToken;
     tokenType assignmentType = TOKEN_TYPE(assignmentToken);
     incCheckNull();

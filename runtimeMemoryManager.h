@@ -12,17 +12,17 @@ typedef struct RuntimeBlock RuntimeBlock;
 
 struct RuntimeBlock {
     Object block[RUNTIME_BLOCK_SIZE];
-    RuntimeBlock* nextBlock;
+    Object* freeStack[RUNTIME_BLOCK_SIZE];
+    Object** freeStackTop;
+    uint32_t availableSlots;
     uint16_t blockID;
 };
 
-typedef struct RuntimeMemoryManager {
-    Object* freeStack[FREE_STACK_SIZE];
-    Object** freeStackTop;
-    RuntimeBlock* headBlock;
-} RuntimeMemoryManager;
-
-extern RuntimeMemoryManager* memoryManager;
+typedef struct PriorityQueue {
+    RuntimeBlock** data;
+    uint32_t size;
+    uint32_t capacity;
+} PriorityQueue;
 
 void initMemoryManager();
 void freeMemoryManager();

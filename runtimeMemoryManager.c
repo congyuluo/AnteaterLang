@@ -6,35 +6,141 @@
 #include "errors.h"
 #include "vm.h"
 
-RuntimeMemoryManager* memoryManager;
+PriorityQueue* blockQueue;
 
 Object* rtHead;
 
-static inline void newBlock() {
+// Block Operations
+
+static inline RuntimeBlock* newBlock() {
 #ifdef PRINT_MEMORY_INFO
     printf("Allocating new block\n");
 #endif
     RuntimeBlock* newBlock = (RuntimeBlock*) malloc(sizeof(RuntimeBlock));
     if (newBlock == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for new block");
-    newBlock->nextBlock = memoryManager->headBlock;
-    memoryManager->headBlock = newBlock;
-    uint16_t newBlockID = newBlock->nextBlock == NULL ? 0 : newBlock->nextBlock->blockID + 1;
-    newBlock->blockID = newBlockID;
-    // Insert new free slots
-    Object** stackTop = memoryManager->freeStackTop;
+    // Insert new free slots onto free stack
+    Object** stackTop = newBlock->freeStack;
     Object* newSlot = (Object*) newBlock->block;
-    for (int i = 0; i < RUNTIME_BLOCK_SIZE; i++) {
-        newSlot->blockID = newBlockID;
-        *stackTop++ = newSlot++;
-    }
-    memoryManager->freeStackTop = stackTop;
+    for (int i = 0; i < RUNTIME_BLOCK_SIZE; i++) *stackTop++ = newSlot++;
+    // Update free stack top
+    newBlock->freeStackTop = stackTop;
+    // Set occupied slots
+    newBlock->availableSlots = RUNTIME_BLOCK_SIZE;
+    return newBlock;
 }
 
+// Priority Queue Operations
+
+static inline void swap(RuntimeBlock** a, RuntimeBlock** b) {
+    RuntimeBlock* temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void heapifyUp(uint32_t index) {
+    while (index > 0) {
+        int parent = (index - 1) / 2;
+        if (blockQueue->data[parent]->availableSlots <= blockQueue->data[index]->availableSlots) break;
+        swap(&blockQueue->data[parent], &blockQueue->data[index]);
+        index = parent;
+    }
+}
+
+void heapifyDown(uint32_t index) {
+    int left, right, smallest;
+    while (1) {
+        left = 2 * index + 1;
+        right = 2 * index + 2;
+        smallest = index;
+
+        if (left < blockQueue->size && blockQueue->data[left]->availableSlots < blockQueue->data[smallest]->availableSlots) {
+            smallest = left;
+        }
+        if (right < blockQueue->size && blockQueue->data[right]->availableSlots < blockQueue->data[smallest]->availableSlots) {
+            smallest = right;
+        }
+        if (smallest == index) break;
+
+        swap(&blockQueue->data[smallest], &blockQueue->data[index]);
+        index = smallest;
+    }
+}
+
+void initPriorityQueue() {
+    blockQueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+    if (blockQueue == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for priority queue.");
+    blockQueue->data = (RuntimeBlock**)malloc(sizeof(RuntimeBlock*) * INITIAL_PRIORITY_QUEUE_CAPACITY);
+    if (blockQueue->data == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for priority queue data.");
+    blockQueue->size = 0;
+    blockQueue->capacity = INITIAL_PRIORITY_QUEUE_CAPACITY;
+}
+
+void freePriorityQueue() {
+    // Free every block
+    for (int i = 0; i < blockQueue->size; i++) free(blockQueue->data[i]);
+    // Free block data
+    free(blockQueue->data);
+    free(blockQueue);
+}
+
+void resizePriorityQueue() {
+    blockQueue->capacity *= PRIORITY_QUEUE_GROWTH_FACTOR;
+    blockQueue->data = (RuntimeBlock**) realloc(blockQueue->data, sizeof(RuntimeBlock*) * blockQueue->capacity);
+    if (blockQueue->data == NULL) raiseExceptionByName("ObjManagerError", "Memory reallocation failed for priority queue data.");
+}
+
+void addBlock(RuntimeBlock* block) {
+    if (blockQueue->size == blockQueue->capacity) {
+        resizePriorityQueue(blockQueue);
+    }
+    blockQueue->data[blockQueue->size] = block;
+    heapifyUp(blockQueue->size);
+    blockQueue->size++;
+}
+
+void updateBlock(uint32_t blockID, uint32_t newAvailableSlots) {
+    for (uint32_t i = 0; i < blockQueue->size; i++) {
+        if (blockQueue->data[i]->blockID == blockID) {
+            blockQueue->data[i]->availableSlots = newAvailableSlots;
+            heapifyUp(i);
+            heapifyDown(i);
+            return;
+        }
+    }
+}
+
+RuntimeBlock* removeBlock(uint32_t blockID) {
+    int index = -1;
+    for (uint32_t i = 0; i < blockQueue->size; i++) {
+        if (blockQueue->data[i]->blockID == blockID) {
+            index = (int) i;
+            break;
+        }
+    }
+    if (index == -1) return NULL;
+
+    RuntimeBlock* removedBlock = blockQueue->data[index];
+    blockQueue->data[index] = blockQueue->data[blockQueue->size - 1];
+    blockQueue->size--;
+    heapifyDown(index);
+    return removedBlock;
+}
+
+RuntimeBlock* getTopBlock(PriorityQueue* pq) {
+    if (pq->size == 0) return NULL;
+    return pq->data[0];
+}
+
+
+// Memory Manager Operations
+
 void initMemoryManager() {
-    memoryManager = (RuntimeMemoryManager*) malloc(sizeof(RuntimeMemoryManager));
-    if (memoryManager == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for memory manager");
-    memoryManager->freeStackTop = memoryManager->freeStack;
-    memoryManager->headBlock = NULL;
+    // Init priority queue
+    initPriorityQueue();
+    // Create initial block
+    RuntimeBlock* initialBlock = newBlock();
+    // Insert initial block into priority queue
+    addBlock(initialBlock);
     // Init runtime head
     rtHead = NULL;
     // Allocate head block
@@ -42,13 +148,8 @@ void initMemoryManager() {
 }
 
 void freeMemoryManager() {
-    RuntimeBlock* currBlock = memoryManager->headBlock;
-    while (currBlock != NULL) {
-        RuntimeBlock* nextBlock = currBlock->nextBlock;
-        free(currBlock);
-        currBlock = nextBlock;
-    }
-    free(memoryManager);
+    // Free priority queue
+    freePriorityQueue();
 }
 
 // Forward declaration
