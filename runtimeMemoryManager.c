@@ -7,6 +7,7 @@
 #include "vm.h"
 
 uint32_t blockIDCounter;
+
 PriorityQueue* blockQueue;
 
 runtimeDict* rtBlockDict;
@@ -438,28 +439,76 @@ static inline uint32_t sweepObject() {
     return removedCount;
 }
 
+static inline uint32_t determineFreeCount(uint32_t totalBlockCount, uint32_t freeBlockCount) {
+    // Heuristic to determine number of blocks to free
+    return freeBlockCount - MAX_ALLOWED_EMPTY_BLOCK;
+}
+
+static inline void freeUnusedBlocks() {
+    // Create runtime list to store empty blocks
+    runtimeList* emptyList = createRuntimeList(RUNTIME_LIST_INIT_SIZE);
+
+    // Iterate to find empty blocks
+    for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
+        runtimeDictEntry* entry = rtBlockDict->entries[i];
+        while (entry) {
+            RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
+            if (currBlock->availableSlots == RUNTIME_BLOCK_SIZE) {
+                // Add to empty list
+                listAddElement(emptyList, PTR_VAL(currBlock));
+            }
+            entry = entry->next;
+        }
+    }
+
+    // Determine number of blocks to free
+    uint32_t targetFreeCount = determineFreeCount(rtBlockDict->numEntries, emptyList->size);
+
+    if (targetFreeCount > 0) {
+        // Free blocks
+        // Iterate list to find empty blocks
+        uint32_t freedCount = 0;
+
+        Value* listValueArray = emptyList->list;
+        for (uint32_t i=0; i < emptyList->size; i++) {
+            RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(listValueArray[i]);
+            // Free block
+            free(currBlock);
+            freedCount++;
+            if (freedCount >= targetFreeCount) break;
+        }
+    }
+
+    // Free runtime list
+    freeRuntimeList(emptyList);
+}
+
+static inline void reviveBlocks() {
+    // Reorder block queue
+    reHeapify();
+    // Iterate to find possibly revived blocks
+    for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
+        runtimeDictEntry* entry = rtBlockDict->entries[i];
+        while (entry) {
+            RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
+            if (currBlock->revived) {
+                // Reset flag
+                currBlock->revived = false;
+                // Insert into heap
+                pqAddBlock(currBlock);
+            }
+            entry = entry->next;
+        }
+    }
+}
+
 static inline void collectGarbage() {
     // Mark and sweep
     markObject();
     // Sweep
-    if (sweepObject() > 0) {
-        // Reorder block queue
-        reHeapify();
-        // Iterate to find possibly revived blocks
-        for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
-            runtimeDictEntry* entry = rtBlockDict->entries[i];
-            while (entry) {
-                RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
-                if (currBlock->revived) {
-                    // Reset flag
-                    currBlock->revived = false;
-                    // Insert into heap
-                    pqAddBlock(currBlock);
-                }
-                entry = entry->next;
-            }
-        }
-    }
+    if (sweepObject() > 0) reviveBlocks();
+    // Free unused blocks
+    freeUnusedBlocks();
 #ifdef PRINT_BLOCK_ORDER
     printf("GC Cleaned\n");
     printManagementDS();
