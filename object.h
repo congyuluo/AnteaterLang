@@ -19,6 +19,7 @@
 #define NUMBER_VAL(n) (Value) { .num = (n), .type = VAL_NUMBER }
 #define OBJECT_VAL(o, t) (Value) { .obj = (o), .type = (t) }
 #define BOOL_VAL(b) (Value) { .boolean = (b), .type = VAL_BOOL }
+#define PTR_VAL(p) (Value) { .ptr = (p), .type = VAL_NONE }
 
 #define INTERNAL_NULL_VAL (Value) { .obj = NULL, .type = VAL_INTERNAL_NULL }
 #define IS_INTERNAL_NULL(val) ((val).type == VAL_INTERNAL_NULL)
@@ -34,6 +35,7 @@
 #define VALUE_ATTRS(val) val.obj->primValue.afterDefAttributes
 #define VALUE_CLASS(val) classArray[VALUE_TYPE(val)]
 #define VALUE_OBJ_VAL(val) val.obj
+#define VALUE_PTR_VAL(val) val.ptr
 
 #define IS_SYSTEM_DEFINED_CLASS(c) ((c)->classID < 10)
 #define IS_SYSTEM_DEFINED_TYPE(t) ((t) < 10)
@@ -93,6 +95,8 @@ struct Value {
         Object* obj;
         double num;
         bool boolean;
+        // Only used for runtime block dictionary value
+        void* ptr;
     };
     uint16_t type;
 };

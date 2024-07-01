@@ -9,21 +9,11 @@
 uint32_t blockIDCounter;
 PriorityQueue* blockQueue;
 
-RuntimeBlock** orderedBlockArray;
-uint32_t orderedBlockArraySize;
+runtimeDict* rtBlockDict;
 
 Object* rtHead;
 
 // Block Operations
-
-static inline void appendBlock(RuntimeBlock* block) {
-    if (block->blockID == orderedBlockArraySize) {
-        orderedBlockArraySize *= PRIORITY_QUEUE_GROWTH_FACTOR;
-        orderedBlockArray = (RuntimeBlock**) realloc(orderedBlockArray, orderedBlockArraySize * sizeof(RuntimeBlock*));
-        if (orderedBlockArray == NULL) raiseExceptionByName("ObjManagerError", "Memory reallocation failed for ordered block array.");
-    }
-    orderedBlockArray[block->blockID] = block;
-}
 
 static inline RuntimeBlock* newBlock() {
 #ifdef PRINT_MEMORY_INFO
@@ -34,8 +24,8 @@ static inline RuntimeBlock* newBlock() {
 
     // Set block ID
     newBlock->blockID = blockIDCounter++;
-    // Append to block queue
-    appendBlock(newBlock);
+    // Add block to runtime block dictionary
+    dictInsertElement(rtBlockDict, NUMBER_VAL(newBlock->blockID), PTR_VAL(newBlock));
 
     // Set revived flag
     newBlock->revived = false;
@@ -84,10 +74,16 @@ void printManagementDS() {
         printf("Block #%u: %u", blockQueue->data[i]->blockID, blockQueue->data[i]->availableSlots);
     }
     printf("]\n");
-    printf("Ordered Block Array: \n[");
-    for (uint32_t i = 0; i < blockIDCounter; i++) {
-        if (i > 0) printf(", ");
-        printf("Block #%u: %u", orderedBlockArray[i]->blockID, orderedBlockArray[i]->availableSlots);
+    printf("RT Block Dict: \n[");
+    uint32_t count = 0;
+    for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
+        runtimeDictEntry* entry = rtBlockDict->entries[i];
+        while (entry) {
+            RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
+            if (count++ > 0) printf(", ");
+            printf("Block #%u: %u", currBlock->blockID, currBlock->availableSlots);
+            entry = entry->next;
+        }
     }
     printf("]\n");
 }
@@ -206,11 +202,8 @@ void initMemoryManager() {
     initPriorityQueue();
     // Set block ID counter
     blockIDCounter = 0;
-    // Allocate ordered block array
-    orderedBlockArray = (RuntimeBlock**) malloc(sizeof(RuntimeBlock*) * INITIAL_PRIORITY_QUEUE_CAPACITY);
-    if (orderedBlockArray == NULL) raiseExceptionByName("ObjManagerError", "Memory allocation failed for ordered block array.");
-    // Initialize ordered block array size
-    orderedBlockArraySize = INITIAL_PRIORITY_QUEUE_CAPACITY;
+    // Initialize runtime block dictionary
+    rtBlockDict = createRuntimeDict(RUNTIME_DICT_INIT_SIZE);
     // Create initial block & Insert initial block into priority queue
     pqAddBlock(newBlock());
     // Init runtime head
@@ -220,10 +213,16 @@ void initMemoryManager() {
 void freeMemoryManager() {
     // Free priority queue
     freePriorityQueue();
-    // Free all blocks from ordered block array
-    for (uint32_t i = 0; i < blockIDCounter; i++) free(orderedBlockArray[i]);
-    // Free ordered block array
-    free(orderedBlockArray);
+    for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
+        runtimeDictEntry* entry = rtBlockDict->entries[i];
+        while (entry) {
+            RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
+            free(currBlock);
+            entry = entry->next;
+        }
+    }
+    // Free runtime block dictionary
+    freeRuntimeDict(rtBlockDict);
 }
 
 // Forward declaration
@@ -423,8 +422,10 @@ static inline uint32_t sweepObject() {
             }
             Object* nextObj = currObj->next;
 
+            // Find block in which object is allocated
+            RuntimeBlock* block = (RuntimeBlock*) VALUE_PTR_VAL(dictGetElement(rtBlockDict, NUMBER_VAL(currObj->blockID)));
             // Deallocate object
-            deallocateFromBlock(orderedBlockArray[currObj->blockID], currObj);
+            deallocateFromBlock(block, currObj);
             currObj = nextObj;
         }
 #ifdef PRINT_GC_REMOVAL
@@ -445,12 +446,17 @@ static inline void collectGarbage() {
         // Reorder block queue
         reHeapify();
         // Iterate to find possibly revived blocks
-        for (uint32_t i=0; i<blockIDCounter; i++) {
-            if (orderedBlockArray[i]->revived) {
-                // Reset flag
-                orderedBlockArray[i]->revived = false;
-                // Insert into heap
-                pqAddBlock(orderedBlockArray[i]);
+        for (uint32_t i=0; i < rtBlockDict->tableSize; i++) {
+            runtimeDictEntry* entry = rtBlockDict->entries[i];
+            while (entry) {
+                RuntimeBlock* currBlock = (RuntimeBlock*) VALUE_PTR_VAL(entry->value);
+                if (currBlock->revived) {
+                    // Reset flag
+                    currBlock->revived = false;
+                    // Insert into heap
+                    pqAddBlock(currBlock);
+                }
+                entry = entry->next;
             }
         }
     }
