@@ -21,11 +21,7 @@ AnteaterLang is a programming language which supports easy C acceleration. This 
 
 ### Installing AnteaterLang
 
-1. **Clone the Repository:**
-   ```sh
-   git clone https://github.com/your-username/your-repository.git
-   cd your-repository
-    ```
+1. **Clone / Download the Repository**
    
 2. **Run the Installation Script:**
     ```sh
