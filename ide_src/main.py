@@ -406,8 +406,8 @@ class AnteaterIDE:
                     file = self.project_location + "/" + local_path
                     self.new_tab(file)
         except:
-            # Remove file and reset variables
-            shutil.rmtree(config_loc)
+            if os.path.exists(config_loc):
+                os.remove(config_loc)
 
             # Print message
             self.print_message(f"Prior IDE Cache @ {config_loc} is corrupted, file removed.")
