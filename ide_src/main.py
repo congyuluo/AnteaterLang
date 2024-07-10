@@ -196,11 +196,6 @@ class AnteaterIDE:
         self.terminal_output.config(yscrollcommand=self.terminal_scrollbar.set)
         self.terminal_scrollbar.config(command=self.terminal_output.yview)
 
-        # Terminal input
-        self.terminal_input = tk.Entry(self.terminal_frame, bg='black', fg='white')
-        self.terminal_input.pack(side=tk.BOTTOM, fill=tk.X)
-        self.terminal_input.bind("<Return>", self.run_terminal_command)
-
         # Create menu bar
         self.menu_bar = tk.Menu(self.root)
         self.root.config(menu=self.menu_bar)
@@ -298,6 +293,18 @@ class AnteaterIDE:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.language_version_info = self.check_language_version()
+
+    def run_in_new_terminal(self, command):
+        script = f'''
+        tell application "Terminal"
+            do script "clear; {command}"
+            activate
+        end tell
+        '''
+        process = subprocess.Popen(["osascript", "-e", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if stderr:
+            self.terminal_output.insert(tk.END, stderr.decode())
 
     def load_ant_default_source(self):
         self.new_file()
@@ -631,69 +638,30 @@ class AnteaterIDE:
             del self.file_paths[str(current_tab)]
 
     def run_code(self):
-        # Check that the AnteaterLang Source has been set
         if not self.anteater_lang_source:
-            messagebox.showinfo("Source Not Set", f"Please set the AnteaterLang Source file.")
+            messagebox.showinfo("Source Not Set", "Please set the AnteaterLang Source file.")
             return
 
-        # Find the c acc file
         c_acc_so_path = os.path.join(self.project_location, C_ACC_LIBRARY_SO_PATH)
-
-        # Check if the c acc file exists
         if not os.path.exists(c_acc_so_path):
-            messagebox.showinfo("C Acc Library Not Found", "The C Acc Library has not been compiled. Please compile the C Acc Library before running the code.")
+            messagebox.showinfo("C Acc Library Not Found",
+                                "The C Acc Library has not been compiled. Please compile the C Acc Library before running the code.")
             return
 
-        # Save everything before running
         self.save_all_files()
-
-        # Clear the terminal output
-        self.terminal_output.delete(1.0, tk.END)
 
         command = f"antlang {c_acc_so_path} {self.anteater_lang_source}"
-
-        def run_command():
-            if sys.version_info >= (3, 7):
-                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            else:
-                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-            stdout, stderr = process.communicate()
-            self.terminal_output.insert(tk.END, stdout)
-            if stderr:
-                self.terminal_output.insert(tk.END, stderr)
-            self.terminal_output.insert(tk.END, "\n")
-
-        threading.Thread(target=run_command).start()
+        self.run_in_new_terminal(command)
 
     def run_code_without_c_lib(self):
-        # Check that the AnteaterLang Source has been set
         if not self.anteater_lang_source:
-            messagebox.showinfo("Source Not Set", f"Please set the AnteaterLang Source file.")
+            messagebox.showinfo("Source Not Set", "Please set the AnteaterLang Source file.")
             return
 
-        # Save everything before running
         self.save_all_files()
 
-        # Clear the terminal output
-        self.terminal_output.delete(1.0, tk.END)
-
-        # Print source path
-        self.print_message(f"Using AnteaterLang source @ {self.anteater_lang_source}")
-
         command = f"antlang {self.anteater_lang_source}"
-
-        def run_command():
-            if sys.version_info >= (3, 7):
-                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            else:
-                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-            stdout, stderr = process.communicate()
-            self.terminal_output.insert(tk.END, stdout)
-            if stderr:
-                self.terminal_output.insert(tk.END, stderr)
-            self.terminal_output.insert(tk.END, "\n")
-
-        threading.Thread(target=run_command).start()
+        self.run_in_new_terminal(command)
 
     def compile_c_lib(self):
         # Check that the C Acc Library Source has been set
@@ -769,21 +737,6 @@ class AnteaterIDE:
                                                filetypes=[(C_ACC_LIBRARY_EXTENSION_DESCRIPTION, C_ACC_LIBRARY_EXTENSION_REGEX)])
         if file_path:
             self.c_acc_library_source = file_path
-
-    def run_terminal_command(self, event):
-        command = self.terminal_input.get()
-        self.terminal_input.delete(0, tk.END)
-        self.terminal_output.insert(tk.END, f"$ {command}\n")
-
-        def run_command():
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            stdout, stderr = process.communicate()
-            self.terminal_output.insert(tk.END, stdout)
-            if stderr:
-                self.terminal_output.insert(tk.END, stderr)
-            self.terminal_output.insert(tk.END, "\n")
-
-        threading.Thread(target=run_command).start()
 
     def get_current_text_widget(self):
         current_tab = self.notebook.select()
