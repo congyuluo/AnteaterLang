@@ -348,13 +348,23 @@ class AnteaterIDE:
     def new_tab(self, file_path):
         with open(file_path, "r") as f:
             new_tab = tk.Frame(self.notebook)
+
+            # Create a Text widget for the editor with a vertical scrollbar
             text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size),
-                                  bg=EDITOR_BACKGROUND_COLOR, fg='white')
+                                  bg=EDITOR_BACKGROUND_COLOR, fg='white', wrap=tk.NONE)
             text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+
+            # Create a Scrollbar and attach it to the Text widget
+            scrollbar = tk.Scrollbar(new_tab, orient=tk.VERTICAL, command=text_widget.yview)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            text_widget.config(yscrollcommand=scrollbar.set)
+
             text_widget.bind("<KeyRelease>", self.highlight_keywords)
             text_widget.bind("<Return>", self.auto_indent)
+
             file_content = f.read()
             text_widget.insert(tk.END, file_content)
+
             self.notebook.add(new_tab, text=file_path.split("/")[-1])
             self.notebook.select(new_tab)
             self.file_paths[str(new_tab)] = file_path
