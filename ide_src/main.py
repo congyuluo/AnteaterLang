@@ -410,7 +410,7 @@ class AnteaterIDE:
                 os.remove(config_loc)
 
             # Print message
-            self.print_message(f"Prior IDE Cache @ {config_loc} is corrupted, file removed.")
+            self.print_message(f"Prior IDE Cache @ {config_loc} is corrupted, file removed.", "red")
 
             self.project_location = None
             self.editor_font_size = EDITOR_FONT_SIZE
@@ -432,7 +432,7 @@ class AnteaterIDE:
         self.root.destroy()
         self.save_config()
 
-    def print_message(self, message, color="blue"):
+    def print_message(self, message, color="green"):
         color_map = {
             "red": "#FF0000",
             "green": "#00FF00",
