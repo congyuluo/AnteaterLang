@@ -150,6 +150,12 @@ ant_keywords = {
     "raise": "#C47432",  # (196, 116, 50)
 }
 
+def alter_path(path):
+    """
+    Replace spaces in the path with the appropriate terminal escape sequence.
+    """
+    return path.replace(" ", "\\ ")
+
 class AnteaterIDE:
     def __init__(self, root):
         self.root = root
@@ -652,7 +658,7 @@ class AnteaterIDE:
 
         self.save_all_files()
 
-        command = f"antlang {c_acc_so_path} {self.anteater_lang_source}"
+        command = f"antlang {alter_path(c_acc_so_path)} {alter_path(self.anteater_lang_source)}"
         self.run_in_new_terminal(command)
 
     def run_code_without_c_lib(self):
@@ -662,7 +668,7 @@ class AnteaterIDE:
 
         self.save_all_files()
 
-        command = f"antlang {self.anteater_lang_source}"
+        command = f"antlang {alter_path(self.anteater_lang_source)}"
         self.run_in_new_terminal(command)
 
     def compile_c_lib(self):
@@ -684,7 +690,7 @@ class AnteaterIDE:
             "-fPIC",
             f"-I{include_dir}",
             "-c",
-            self.c_acc_library_source,
+            alter_path(self.c_acc_library_source),
             "-o",
             "userFunctions.o"
         ]
