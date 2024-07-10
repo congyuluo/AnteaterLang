@@ -7,6 +7,7 @@ import threading
 from tkinter import ttk
 import pickle
 import os
+import sys
 
 SOURCE_EXTENSION = ".ant"
 SOURCE_EXTENSION_REGEX = f"*{SOURCE_EXTENSION}"
@@ -318,8 +319,15 @@ class AnteaterIDE:
 
     def check_language_version(self) -> str:
         # Check if the AnteaterLang version is installed
-        process = subprocess.Popen(f"{ANTEATERLANG_KEYWORD} --version", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   text=True)
+        # Check the Python version and use the appropriate argument
+        if sys.version_info >= (3, 7):
+            process = subprocess.Popen(f"{ANTEATERLANG_KEYWORD} --version", shell=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE,
+                                       text=True)
+        else:
+            process = subprocess.Popen(f"{ANTEATERLANG_KEYWORD} --version", shell=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE,
+                                       universal_newlines=True)
         stdout, stderr = process.communicate()
         if not stdout.startswith('AnteaterLang Version'):
             messagebox.showinfo("AnteaterLang Version", "AnteaterLang is not installed/found.")
@@ -645,7 +653,10 @@ class AnteaterIDE:
         command = f"antlang {c_acc_so_path} {self.anteater_lang_source}"
 
         def run_command():
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if sys.version_info >= (3, 7):
+                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            else:
+                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             stdout, stderr = process.communicate()
             self.terminal_output.insert(tk.END, stdout)
             if stderr:
@@ -672,7 +683,10 @@ class AnteaterIDE:
         command = f"antlang {self.anteater_lang_source}"
 
         def run_command():
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if sys.version_info >= (3, 7):
+                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            else:
+                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             stdout, stderr = process.communicate()
             self.terminal_output.insert(tk.END, stdout)
             if stderr:
@@ -715,23 +729,21 @@ class AnteaterIDE:
             "-llang"
         ]
 
-        def run_command(command):
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            stdout, stderr = process.communicate()
-            self.terminal_output.insert(tk.END, stdout)
-            if stderr:
-                self.terminal_output.insert(tk.END, stderr)
-            self.terminal_output.insert(tk.END, "\n")
-
         def compile_and_link():
-            compile_result = subprocess.run(" ".join(compile_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if sys.version_info >= (3, 7):
+                compile_result = subprocess.run(" ".join(compile_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            else:
+                compile_result = subprocess.run(" ".join(compile_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             self.terminal_output.insert(tk.END, compile_result.stdout)
             if compile_result.stderr:
                 self.terminal_output.insert(tk.END, compile_result.stderr)
                 return
 
             if compile_result.returncode == 0:
-                shared_lib_result = subprocess.run(" ".join(shared_lib_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                if sys.version_info >= (3, 7):
+                    shared_lib_result = subprocess.run(" ".join(shared_lib_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                else:
+                    shared_lib_result = subprocess.run(" ".join(shared_lib_command), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                 self.terminal_output.insert(tk.END, shared_lib_result.stdout)
                 if shared_lib_result.stderr:
                     self.terminal_output.insert(tk.END, shared_lib_result.stderr)

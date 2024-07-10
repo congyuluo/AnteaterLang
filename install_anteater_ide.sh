@@ -5,7 +5,7 @@ set -e
 
 # Define the source and target paths
 SRC_DIR=ide_src
-IDE_SCRIPT=anteater_ide.py
+IDE_SCRIPT=main.py
 TARGET_SCRIPT=antide
 
 # Get the current directory
