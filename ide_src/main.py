@@ -63,7 +63,7 @@ SAMPLE_C_ACC_LIBRARY_SOURCE = """\
 
 // Sample Function
 Value helloWorld(Value self, Value* args, int numArgs){
-    printf("Hello World!\n");
+    printf("Hello World!\\n");
 
     return NONE_VAL;
 }
@@ -174,7 +174,7 @@ class AnteaterIDE:
         self.editor_frame.pack_propagate(False)
 
         # Create a frame for the terminal
-        self.terminal_frame = tk.Frame(self.paned_window, width=400)
+        self.terminal_frame = tk.Frame(self.paned_window, width=300)
         self.terminal_frame.pack(side=tk.RIGHT, fill=tk.BOTH)
         self.terminal_frame.pack_propagate(False)
 
@@ -310,11 +310,13 @@ class AnteaterIDE:
         self.new_file()
         # Past the sample source code
         self.get_current_text_widget().insert(tk.END, SAMPLE_ANT_SOURCE)
+        self.highlight_keywords()
 
     def load_c_acc_default_source(self):
         self.new_file()
         # Past the sample source code
         self.get_current_text_widget().insert(tk.END, SAMPLE_C_ACC_LIBRARY_SOURCE)
+        self.highlight_keywords()
 
     def check_language_info(self, event=None):
         self.check_language_version()
