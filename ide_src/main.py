@@ -1,3 +1,4 @@
+import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import tkinter.font as tkfont
@@ -86,9 +87,9 @@ class AnteaterIDE:
         self.root.title("Anteater IDE")
         self.root.geometry(DEFAULT_WINDOW_SIZE)
 
-        self.editor_font_size = 15  # Default font size
-        self.terminal_font_size = 15  # Default terminal font size
-        self.tab_spaces = 4  # Number of spaces per tab
+        self.editor_font_size = EDITOR_FONT_SIZE  # Default font size
+        self.terminal_font_size = TERMINAL_FONT_SIZE  # Default terminal font size
+        self.tab_spaces = TAB_SPACE  # Number of spaces per tab
 
         # Set up the main frame
         self.main_frame = tk.Frame(self.root)
@@ -264,29 +265,45 @@ class AnteaterIDE:
         config_loc = self.project_location + IDE_PROJECT_SETTING_NAME
         if not os.path.exists(config_loc):
             return
-        with open(config_loc, "rb") as config_file:
-            configs = pickle.load(config_file)
-            # Set the window size
-            self.project_location = configs["project_location"]
-            self.editor_font_size = configs["editor_font_size"]
-            self.terminal_font_size = configs["terminal_font_size"]
-            self.tab_spaces = configs["tab_spaces"]
-            self.anteater_lang_source = configs["anteater_lang_source"]
-            self.c_acc_library_source = configs["c_acc_library_source"]
-            for local_path in configs["files_opened"]:
-                file = self.project_location + "/" + local_path
-                with open(file, "r") as f:
-                    new_tab = tk.Frame(self.notebook)
-                    text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size), bg=EDITOR_BACKGROUND_COLOR, fg='white')
-                    text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-                    text_widget.bind("<KeyRelease>", self.highlight_keywords)
-                    text_widget.bind("<Return>", self.auto_indent)
-                    file_content = f.read()
-                    text_widget.insert(tk.END, file_content)
-                    self.notebook.add(new_tab, text=file.split("/")[-1])
-                    self.notebook.select(new_tab)
-                    self.file_paths[str(new_tab)] = file
-                    self.highlight_keywords()
+        try:
+            with open(config_loc, "rb") as config_file:
+                configs = pickle.load(config_file)
+                # Set the window size
+                self.project_location = configs["project_location"]
+                self.editor_font_size = configs["editor_font_size"]
+                self.terminal_font_size = configs["terminal_font_size"]
+                self.tab_spaces = configs["tab_spaces"]
+                self.anteater_lang_source = configs["anteater_lang_source"]
+                self.c_acc_library_source = configs["c_acc_library_source"]
+                for local_path in configs["files_opened"]:
+                    file = self.project_location + "/" + local_path
+                    with open(file, "r") as f:
+                        new_tab = tk.Frame(self.notebook)
+                        text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size),
+                                              bg=EDITOR_BACKGROUND_COLOR, fg='white')
+                        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+                        text_widget.bind("<KeyRelease>", self.highlight_keywords)
+                        text_widget.bind("<Return>", self.auto_indent)
+                        file_content = f.read()
+                        text_widget.insert(tk.END, file_content)
+                        self.notebook.add(new_tab, text=file.split("/")[-1])
+                        self.notebook.select(new_tab)
+                        self.file_paths[str(new_tab)] = file
+                        self.highlight_keywords()
+        except:
+            # Remove file and reset variables
+            shutil.rmtree(config_loc)
+
+            # Print message
+            self.print_message(f"Prior IDE Cache @ {config_loc} is corrupted, file removed.")
+
+            self.project_location = None
+            self.editor_font_size = EDITOR_FONT_SIZE
+            self.terminal_font_size = TERMINAL_FONT_SIZE
+            self.tab_spaces = TAB_SPACE
+            self.anteater_lang_source = None
+            self.c_acc_library_source = None
+
 
     def on_close(self):
         """Prompt the user to save all files before exiting."""
@@ -563,6 +580,9 @@ class AnteaterIDE:
 
         # Clear the terminal output
         self.terminal_output.delete(1.0, tk.END)
+
+        # Print source path
+        self.print_message(f"Using AnteaterLang source @ {self.anteater_lang_source}")
 
         command = f"antlang {self.anteater_lang_source}"
 
