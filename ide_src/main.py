@@ -184,6 +184,13 @@ class AnteaterIDE:
         anteater_lang_menu.add_command(label="Check Language Version", command=self.check_language_info)
         anteater_lang_menu.add_command(label="Check IDE Version", command=self.check_ide_info)
 
+        # Add divider
+        anteater_lang_menu.add_separator()
+
+        # Add default source code
+        anteater_lang_menu.add_command(label="Load Sample AnteaterLang Source", command=self.load_ant_default_source)
+        anteater_lang_menu.add_command(label="Load Sample C Acc Library Source", command=self.load_c_acc_default_source)
+
         # Set up the buttons frame
         self.buttons_frame = tk.Frame(self.root)
         self.buttons_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
@@ -223,6 +230,16 @@ class AnteaterIDE:
 
         self.language_version_info = self.check_language_version()
 
+    def load_ant_default_source(self):
+        self.new_file()
+        # Past the sample source code
+        self.get_current_text_widget().insert(tk.END, SAMPLE_ANT_SOURCE)
+
+    def load_c_acc_default_source(self):
+        self.new_file()
+        # Past the sample source code
+        self.get_current_text_widget().insert(tk.END, SAMPLE_C_ACC_LIBRARY_SOURCE)
+
     def check_language_info(self, event=None):
         self.check_language_version()
         if self.language_version_info:
@@ -260,6 +277,21 @@ class AnteaterIDE:
         with open(config_loc, "wb") as file:
             pickle.dump(configs, file)
 
+    def new_tab(self, file_path):
+        with open(file_path, "r") as f:
+            new_tab = tk.Frame(self.notebook)
+            text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size),
+                                  bg=EDITOR_BACKGROUND_COLOR, fg='white')
+            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+            text_widget.bind("<KeyRelease>", self.highlight_keywords)
+            text_widget.bind("<Return>", self.auto_indent)
+            file_content = f.read()
+            text_widget.insert(tk.END, file_content)
+            self.notebook.add(new_tab, text=file_path.split("/")[-1])
+            self.notebook.select(new_tab)
+            self.file_paths[str(new_tab)] = file_path
+            self.highlight_keywords()
+
     def load_config(self):
         # Check if file exists
         config_loc = self.project_location + IDE_PROJECT_SETTING_NAME
@@ -277,19 +309,7 @@ class AnteaterIDE:
                 self.c_acc_library_source = configs["c_acc_library_source"]
                 for local_path in configs["files_opened"]:
                     file = self.project_location + "/" + local_path
-                    with open(file, "r") as f:
-                        new_tab = tk.Frame(self.notebook)
-                        text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size),
-                                              bg=EDITOR_BACKGROUND_COLOR, fg='white')
-                        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-                        text_widget.bind("<KeyRelease>", self.highlight_keywords)
-                        text_widget.bind("<Return>", self.auto_indent)
-                        file_content = f.read()
-                        text_widget.insert(tk.END, file_content)
-                        self.notebook.add(new_tab, text=file.split("/")[-1])
-                        self.notebook.select(new_tab)
-                        self.file_paths[str(new_tab)] = file
-                        self.highlight_keywords()
+                    self.new_tab(file)
         except:
             # Remove file and reset variables
             shutil.rmtree(config_loc)
@@ -303,6 +323,11 @@ class AnteaterIDE:
             self.tab_spaces = TAB_SPACE
             self.anteater_lang_source = None
             self.c_acc_library_source = None
+
+            # Close all tabs
+            for tab_id in self.notebook.tabs():
+                self.notebook.forget(tab_id)
+
 
 
     def on_close(self):
@@ -350,37 +375,19 @@ class AnteaterIDE:
     def new_file(self):
         file_path = filedialog.asksaveasfilename(initialdir=self.project_location, defaultextension=SOURCE_EXTENSION,
                                                  filetypes=[(SOURCE_DESCRIPTION, SOURCE_EXTENSION_REGEX), (C_ACC_LIBRARY_EXTENSION_DESCRIPTION, C_ACC_LIBRARY_EXTENSION_REGEX)])
+
         if file_path:
-            new_tab = tk.Frame(self.notebook)
-            text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size), bg=EDITOR_BACKGROUND_COLOR, fg='white')
-            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-            text_widget.bind("<KeyRelease>", self.highlight_keywords)
-            text_widget.bind("<Return>", self.auto_indent)
-            self.notebook.add(new_tab, text=file_path.split("/")[-1])
-            self.notebook.select(new_tab)
-            # Save the file path to the tab for later retrieval
-            self.file_paths[str(new_tab)] = file_path
+            # Create a file
+            with open(file_path, "w", encoding='utf-8') as file:
+                file.write("")
+            self.new_tab(file_path)
 
     def open_file(self):
         file_paths = filedialog.askopenfilenames(initialdir=self.project_location, defaultextension=SOURCE_EXTENSION,
                                                  filetypes=[(SOURCE_DESCRIPTION, SOURCE_EXTENSION_REGEX), (
                                                  C_ACC_LIBRARY_EXTENSION_DESCRIPTION, C_ACC_LIBRARY_EXTENSION_REGEX)])
         for file_path in file_paths:
-            with open(file_path, "r") as file:
-
-                new_tab = tk.Frame(self.notebook)
-                text_widget = tk.Text(new_tab, undo=True, font=("Courier", self.editor_font_size), bg=EDITOR_BACKGROUND_COLOR,
-                                      fg='white')
-                text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-                text_widget.bind("<KeyRelease>", self.highlight_keywords)
-                text_widget.bind("<Return>", self.auto_indent)
-                file_content = file.read()  # Read the file content
-                text_widget.insert(tk.END, file_content)  # Insert the content into the text widget
-                self.notebook.add(new_tab, text=file_path.split("/")[-1])  # Use the file name as the tab title
-                self.notebook.select(new_tab)  # Select the newly created tab
-                # Save the file path to the tab for later retrieval
-                self.file_paths[str(new_tab)] = file_path
-                self.highlight_keywords()  # Apply syntax highlighting immediately
+            self.new_tab(file_path)
 
     def save_file(self):
         current_tab = self.notebook.select()
