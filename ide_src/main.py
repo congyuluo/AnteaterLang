@@ -8,7 +8,6 @@ from tkinter import ttk
 import pickle
 import os
 
-from c_function_compilation import anteater_compile_c
 from common import *
 
 c_keywords = {
